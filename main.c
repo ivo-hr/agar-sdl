@@ -112,6 +112,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
+    
+
+
         int mouseX, mouseY;
         SDL_GetMouseState(&mouseX, &mouseY);
 
@@ -144,6 +147,7 @@ int main(int argc, char* argv[]) {
 
             i++;
         }
+        
 
         SDL_RenderPresent(renderer);
     }
