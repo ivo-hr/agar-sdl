@@ -9,7 +9,7 @@
 #define LAG_FACTOR 0.001
 
 typedef struct{
-    int x, y;
+    float x, y;
     int radius;
     bool alive;
 } player;
