@@ -8,19 +8,18 @@
 #define INI_RADIUS 50
 #define LAG_FACTOR 0.001
 
-typedef struct{
+typedef struct {
     float x, y;
     int radius;
     bool alive;
 } player;
-player players[11]; 
+player players[11];
 //number of the player of this machine
 int playerNumber;
 
-void insertPlayer(int x, int y, int radius)
-{
+void insertPlayer(int x, int y, int radius) {
     int i = 0;
-    while(players[i].alive)
+    while (players[i].alive)
         i++;
     players[i].x = x;
     players[i].y = y;
@@ -42,18 +41,11 @@ void DrawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius, Ui
     }
 }
 
-// void PlayerCircle(SDL_Renderer* renderer, int radius, int x, int y) {
-//     DrawCircle(renderer, x, y, radius, 0, 0, 255);
-// }
-
 void PlayerCircle(SDL_Renderer* renderer) {
-
-
     //update enemies pos and circle radius
     int i = 0;
-    while(players[i].alive)
-    {
-        if(i != playerNumber)
+    while (players[i].alive) {
+        if (i != playerNumber)
             DrawCircle(renderer, players[i].x, players[i].y, players[i].radius, 255, 0, 0);
         else
             DrawCircle(renderer, players[i].x, players[i].y, players[i].radius, 0, 0, 255);
@@ -62,19 +54,22 @@ void PlayerCircle(SDL_Renderer* renderer) {
     }
 }
 
-void collitions()
-{
+void collitions() {
     int i = 0;
-    while(players[i].alive)
-    {
-        if(i != playerNumber)
-        {
-            if(players[i].x > players[playerNumber].x-players[playerNumber].radius && players[i].x < players[playerNumber].x+players[playerNumber].radius)
-                if(players[i].y > players[playerNumber].y-players[playerNumber].radius && players[i].y < players[playerNumber].y+players[playerNumber].radius)
-                    printf("collition ");
+    while (players[i].alive) {
+        if (i != playerNumber) {
+            if (players[i].x > players[playerNumber].x - players[playerNumber].radius && players[i].x < players[playerNumber].x + players[playerNumber].radius)
+                if (players[i].y > players[playerNumber].y - players[playerNumber].radius && players[i].y < players[playerNumber].y + players[playerNumber].radius)
+                    printf("collision ");
         }
         i++;
     }
+}
+
+void FollowPlayer(float* cameraX, float* cameraY) {
+    // Adjust the camera position based on the player's position
+    *cameraX = players[playerNumber].x - WINDOW_WIDTH / 2;
+    *cameraY = players[playerNumber].y - WINDOW_HEIGHT / 2;
 }
 
 int main(int argc, char* argv[]) {
@@ -91,55 +86,64 @@ int main(int argc, char* argv[]) {
 
     //generating the player
     int i = 0;
-    while(players[i].alive)
-    {
+    while (players[i].alive) {
         i++;
     }
     playerNumber = i;
     insertPlayer(WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, INI_RADIUS);
 
-    // float circleX = WINDOW_WIDTH / 2;  // Initial X position of the circle
-    // float circleY = WINDOW_WIDTH / 2; // Initial Y position of the circle
-    // int playerRadius = INI_RADIUS;
+    //inserting example enemies
+    insertPlayer(WINDOW_WIDTH / 3, WINDOW_WIDTH / 5, 60);
+    insertPlayer(WINDOW_WIDTH / 5, WINDOW_WIDTH / 5, 20);
+
+    // Camera position
+    float cameraX = 0;
+    float cameraY = 0;
+
     // Main loop flag and event handler
     bool quit = false;
     SDL_Event event;
-
-    // Mouse position
-    float mouseX = 0;
-    float mouseY = 0;
-
-    //insertar enemigos ejemplo
-    insertPlayer(WINDOW_WIDTH / 3, WINDOW_WIDTH / 5, 60);
-    insertPlayer(WINDOW_WIDTH / 5, WINDOW_WIDTH / 5, 20);
 
     // MAIN LOOP
     while (!quit) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 quit = true;
-            } else if (event.type == SDL_MOUSEMOTION) {
-                mouseX = event.motion.x;
-                mouseY = event.motion.y;
             }
         }
+
+        int mouseX, mouseY;
+        SDL_GetMouseState(&mouseX, &mouseY);
 
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
 
         // Circle follow cursor movement with lag
+        if (WINDOW_WIDTH / 2 > mouseX)
+            players[playerNumber].x -= (WINDOW_WIDTH / 2 - mouseX) * LAG_FACTOR;
+        else if (WINDOW_WIDTH / 2 < mouseX)
+            players[playerNumber].x += (mouseX - WINDOW_WIDTH / 2) * LAG_FACTOR;
 
-        if (players[playerNumber].x > mouseX)
-            players[playerNumber].x -= (players[playerNumber].x - mouseX) * LAG_FACTOR;
-        else if (players[playerNumber].x < mouseX)
-            players[playerNumber].x += (mouseX - players[playerNumber].x) * LAG_FACTOR;
+        if (WINDOW_HEIGHT/ 2 > mouseY)
+            players[playerNumber].y -= (WINDOW_HEIGHT/ 2 - mouseY) * LAG_FACTOR;
+        else if (WINDOW_HEIGHT/ 2  < mouseY)
+            players[playerNumber].y += (mouseY - WINDOW_HEIGHT/ 2 ) * LAG_FACTOR;
 
-        if (players[playerNumber].y > mouseY)
-            players[playerNumber].y -= (players[playerNumber].y - mouseY) * LAG_FACTOR;
-        else if (players[playerNumber].y < mouseY)
-            players[playerNumber].y += (mouseY - players[playerNumber].y) * LAG_FACTOR;
+        FollowPlayer(&cameraX, &cameraY); // Adjust the camera position
 
-        PlayerCircle(renderer);
+        // Render the players with the camera offset
+        int i = 0;
+        while (players[i].alive) {
+            float renderX = players[i].x - cameraX;
+            float renderY = players[i].y - cameraY;
+
+            if (i != playerNumber)
+                DrawCircle(renderer, renderX, renderY, players[i].radius, 255, 0, 0);
+            else
+                DrawCircle(renderer, renderX, renderY, players[i].radius, 0, 0, 255);
+
+            i++;
+        }
 
         SDL_RenderPresent(renderer);
     }
