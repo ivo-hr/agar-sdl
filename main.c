@@ -5,11 +5,11 @@
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
-#define INI_RADIUS 50
+#define INI_RADIUS 40
 #define LAG_FACTOR 0.01
 #define MAX_PLAYERS 10
-#define MAX_FOOD 100
-#define FOOD_RADIUS 5
+#define MAX_FOOD 20
+#define FOOD_RADIUS 10
 
 typedef struct {
     float x, y;
@@ -41,34 +41,33 @@ void insertPlayer(Player players[], int x, int y, int radius) {
     players[i].alive = true;
 }
 
+void insertFood(Food food[], int x, int y) {
+    int i = 0;
+    while (food[i].alive && i < MAX_FOOD) {
+        i++;
+    }
+    if (i < MAX_FOOD) {
+        food[i].x = x;
+        food[i].y = y;
+        food[i].alive = true;
+    }
+}
+
+void generateFood(Food food[], int numFood, int maxX, int maxY) { 
+    int x, y;
+    for (int i = 0; i < numFood; i++) {
+        x = rand() % maxX;
+        y = rand() % maxY; 
+        insertFood( food, x, y);
+    }
+}
+
 //food methods
 void initializeFood(Food food[]) {
     for (int i = 0; i < MAX_FOOD; i++) {
         food[i].alive = false;
     }
-}
-
-int insertFood(Food food[], int size, int x, int y) {
-    for (int i = 0; i < size; i++) {
-        if (!food[i].alive) {
-            food[i].x = x;
-            food[i].y = y;
-            food[i].alive = true;
-            return i;  // Return the index of the inserted food
-        }
-    }
-    return -1;  // Return -1 if no space available
-}
-
-void generateFood(Food food[], int numFood, int maxX, int maxY) {
-    
-    int x, y;
-    for (int i = 0; i < numFood; i++) {
-        x = rand() % maxX;
-        y = rand() % maxY; 
-        insertFood( food,numFood, x, y);
-
-    }
+    generateFood(food, MAX_FOOD, WINDOW_HEIGHT, WINDOW_WIDTH);
 }
 
 void removeFood(Food food[], int index) {
@@ -92,19 +91,45 @@ void DrawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius, Ui
     }
 }
 
-void drawFood(SDL_Renderer* renderer, Food food[], int cameraX, int cameraY)
+void DrawPlayer(SDL_Renderer* renderer, Player players[], int myPlayerNum, int cameraX, int cameraY, float scale)
 {
-    for(int i = 0; i < MAX_FOOD; i++) {
-        if(food[i].alive)
+    // Render the players with the camera offset
+    int i = 0;
+    for(int i = 0; i < MAX_PLAYERS; i++) {
+        if(players[i].alive)
         {
 
-            float renderX = food[i].x - cameraX;
-            float renderY = food[i].y - cameraY;
-            DrawCircle(renderer, renderX, renderY, FOOD_RADIUS, 0, 255, 0);
+            float renderX = (players[i].x - cameraX) * scale;
+            float renderY = (players[i].y - cameraY) * scale;
+            float renderRadius = players[i].radius * scale;
+
+            if (i != myPlayerNum)
+            {
+                DrawCircle(renderer, renderX, renderY, renderRadius, 150, 0, 0);
+                DrawCircle(renderer, renderX, renderY, renderRadius * 0.95, 255, 0, 0);
+            }
+            else
+            {
+                DrawCircle(renderer, renderX, renderY, renderRadius, 0, 0, 150);
+                DrawCircle(renderer, renderX, renderY, renderRadius * 0.95, 0, 0, 255);
+            }
         }
     }
 }
 
+void drawFood(SDL_Renderer* renderer, Food food[], int cameraX, int cameraY, float scale)
+{
+    for(int i = 0; i < MAX_FOOD; i++) {
+        if(food[i].alive)
+        {
+            float renderX = (food[i].x - cameraX) * scale;
+            float renderY = (food[i].y - cameraY) * scale;
+            float renderRadius = FOOD_RADIUS * scale;
+            DrawCircle(renderer, renderX, renderY, renderRadius, 0, 150, 0);
+            DrawCircle(renderer, renderX, renderY, renderRadius * 0.80, 0, 255, 0);
+        }
+    }
+}
 //collision methods
 void CollisionPlayers(Player players[]) {
     for(int i = 0; i < MAX_PLAYERS; i++) {
@@ -129,27 +154,33 @@ void CollisionPlayers(Player players[]) {
     }
 }
 
-bool CollisionFood(Food food[], Player myPlayer) {
-    for(int i = 0; i < MAX_FOOD; i++) {
+bool CollisionFood(Food food[], Player myPlayer, float scale) {
+    float scaledRadiusSum = (myPlayer.radius + FOOD_RADIUS) * scale;
+
+    for (int i = 0; i < MAX_FOOD; i++) {
         if (food[i].alive) {
-            float disX = fabs(myPlayer.x - food[i].x);
-            float disY = fabs(myPlayer.y - food[i].y);
-            float radiusSum = myPlayer.radius + FOOD_RADIUS;
-            if ((disX <= radiusSum) && (disY <= radiusSum)) {
+            float dx = myPlayer.x - food[i].x;
+            float dy = myPlayer.y - food[i].y;
+            float squaredDistance = dx * dx + dy * dy;
+            float squaredRadiusSum = scaledRadiusSum * scaledRadiusSum;
+
+            if (squaredDistance <= squaredRadiusSum) {
                 removeFood(food, i);
+                generateFood(food, 1, WINDOW_WIDTH, WINDOW_HEIGHT);
                 return true;
             }
         }
     }
+    return false;
 }
 
 //camera method
-void FollowPlayer(Player myPlayer, float* cameraX, float* cameraY) {
+void FollowPlayer(Player myPlayer, float* cameraX, float* cameraY, float* scale) {
     // Adjust the camera position based on the player's position
-    if(myPlayer.alive)
-    {
-        *cameraX = myPlayer.x - WINDOW_WIDTH / 2;
-        *cameraY = myPlayer.y - WINDOW_HEIGHT / 2;
+    if (myPlayer.alive) {
+        *cameraX = myPlayer.x - (WINDOW_WIDTH / 2) / (*scale);
+        *cameraY = myPlayer.y - (WINDOW_HEIGHT / 2) / (*scale);
+        *scale = INI_RADIUS / myPlayer.radius; // Adjust the scale based on player's radius
     }
 }
 
@@ -171,7 +202,6 @@ int main(int argc, char* argv[]) {
     Food food[MAX_FOOD];
     initializeFood(food);
     
-    generateFood(food, 20, WINDOW_HEIGHT, WINDOW_WIDTH);
 
     //esta parte quitarla cuando se meta en el servidor
     Player players[MAX_PLAYERS];
@@ -182,7 +212,7 @@ int main(int argc, char* argv[]) {
     while (players[i].alive) {
         i++;
     }
-    int playerNumber = i;
+    int myPlayerNum = i;
     insertPlayer(players, WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, INI_RADIUS);
 
     //inserting example enemies
@@ -191,9 +221,11 @@ int main(int argc, char* argv[]) {
 
 
 
-    // Camera position
+    // Camera position and scale
     float cameraX = 0;
     float cameraY = 0;
+    float scale = 1.5;
+
 
     // Main loop flag and event handler
     bool quit = false;
@@ -216,42 +248,29 @@ int main(int argc, char* argv[]) {
 
         // Circle follow cursor movement with lag
         if (WINDOW_WIDTH / 2 > mouseX)
-            players[playerNumber].x -= (WINDOW_WIDTH / 2 - mouseX) * LAG_FACTOR;
+            players[myPlayerNum].x -= (WINDOW_WIDTH / 2 - mouseX) * LAG_FACTOR;
         else if (WINDOW_WIDTH / 2 < mouseX)
-            players[playerNumber].x += (mouseX - WINDOW_WIDTH / 2) * LAG_FACTOR;
+            players[myPlayerNum].x += (mouseX - WINDOW_WIDTH / 2) * LAG_FACTOR;
 
         if (WINDOW_HEIGHT/ 2 > mouseY)
-            players[playerNumber].y -= (WINDOW_HEIGHT/ 2 - mouseY) * LAG_FACTOR;
+            players[myPlayerNum].y -= (WINDOW_HEIGHT/ 2 - mouseY) * LAG_FACTOR;
         else if (WINDOW_HEIGHT/ 2  < mouseY)
-            players[playerNumber].y += (mouseY - WINDOW_HEIGHT/ 2 ) * LAG_FACTOR;
+            players[myPlayerNum].y += (mouseY - WINDOW_HEIGHT/ 2 ) * LAG_FACTOR;
 
-        FollowPlayer(players[playerNumber], &cameraX, &cameraY); // Adjust the camera position
+
+        drawFood(renderer, food, cameraX, cameraY, scale);
+     
+     
+        FollowPlayer(players[myPlayerNum], &cameraX, &cameraY, &scale); // Adjust the camera position
         
         //esto hay que meterlo en el server
         CollisionPlayers(players);
 
-        if(CollisionFood(food, players[playerNumber]))
-        players[playerNumber].radius ++;
-        
-        // Render the players with the camera offset
-        int i = 0;
-        for(int i = 0; i < MAX_PLAYERS; i++) {
-            if(players[i].alive)
-            {
+        DrawPlayer(renderer, players, myPlayerNum, cameraX, cameraY, scale);
 
-                float renderX = players[i].x - cameraX;
-                float renderY = players[i].y - cameraY;
+        if(CollisionFood(food, players[myPlayerNum], scale))
+            players[myPlayerNum].radius += 2;
 
-                if (i != playerNumber)
-                    DrawCircle(renderer, renderX, renderY, players[i].radius, 255, 0, 0);
-                else
-                    DrawCircle(renderer, renderX, renderY, players[i].radius, 0, 0, 255);
-            }
-            //i = rand() % 100;
-        }
-
-        drawFood(renderer, food, cameraX, cameraY);
-        
 
         SDL_RenderPresent(renderer);
     }
