@@ -7,10 +7,10 @@
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
-#define INI_RADIUS 40
+#define INI_RADIUS 20
 #define LAG_FACTOR 0.01
 #define MAX_PLAYERS 10
-#define MAX_FOOD 100
+#define MAX_FOOD 50
 #define FOOD_RADIUS 10
 #define WORLD_SIZE 1000
 
@@ -40,20 +40,65 @@ void initializePlayers(Player players[])
     }
 }
 
-void insertPlayer(Player players[], int x, int y, int radius, const char *name)
+int insertPlayer(Player players[], const char *name)
 {
 
     int i = 0;
     while (players[i].alive)
         i++;
-    players[i].x = x;
-    players[i].y = y;
-    players[i].radius = radius;
+    players[i].x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+    players[i].y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+    players[i].radius = INI_RADIUS;
     players[i].alive = true;
     strncpy(players[i].username, name, sizeof(players[i].username) - 1);
     players[i].username[sizeof(players[i].username) - 1] = '\0';
+    return i;
 }
 
+int reSpawnPlayer(Player players[], Player myPlayer)
+{
+    int i = 0;
+    while (players[i].alive)
+        i++;
+    players[i].x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+    players[i].y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+    players[i].radius = INI_RADIUS;
+    players[i].alive = true;
+    strcpy(players[i].username, myPlayer.username);
+    return i;
+}
+
+void MovePlayer(Player* myPlayer, int mouseX, int mouseY)
+{
+    int deltaX, deltaY;
+
+    if (WINDOW_WIDTH / 2 > mouseX)
+        deltaX = -(WINDOW_WIDTH / 2 - mouseX) * LAG_FACTOR;
+    else if (WINDOW_WIDTH / 2 < mouseX)
+        deltaX = (mouseX - WINDOW_WIDTH / 2) * LAG_FACTOR;
+
+    if (WINDOW_HEIGHT / 2 > mouseY)
+        deltaY = -(WINDOW_HEIGHT / 2 - mouseY) * LAG_FACTOR;
+    else if (WINDOW_HEIGHT / 2 < mouseY)
+        deltaY = (mouseY - WINDOW_HEIGHT / 2) * LAG_FACTOR;
+
+    // Update player's position
+    myPlayer->x += deltaX;
+    myPlayer->y += deltaY;
+
+    // Ensure the player's position stays within bounds
+    if (myPlayer->x < -WORLD_SIZE)
+        myPlayer->x = -WORLD_SIZE;
+    else if (myPlayer->x > WORLD_SIZE)
+        myPlayer->x = WORLD_SIZE;
+
+    if (myPlayer->y < -WORLD_SIZE)
+        myPlayer->y = -WORLD_SIZE;
+    else if (myPlayer->y > WORLD_SIZE)
+        myPlayer->y = WORLD_SIZE;
+}
+
+// food methods
 void insertFood(Food food[], int x, int y)
 {
     int i = 0;
@@ -83,54 +128,6 @@ void generateFood(Food food[], int numFood)
     }
 }
 
-void MovePlayer(Player* myPlayer, int mouseX, int mouseY)
-{
-    int deltaX, deltaY;
-
-    if (WINDOW_WIDTH / 2 > mouseX)
-        deltaX = -(WINDOW_WIDTH / 2 - mouseX) * LAG_FACTOR;
-    else if (WINDOW_WIDTH / 2 < mouseX)
-        deltaX = (mouseX - WINDOW_WIDTH / 2) * LAG_FACTOR;
-    else
-        deltaX = 0;
-
-    if (WINDOW_HEIGHT / 2 > mouseY)
-        deltaY = -(WINDOW_HEIGHT / 2 - mouseY) * LAG_FACTOR;
-    else if (WINDOW_HEIGHT / 2 < mouseY)
-        deltaY = (mouseY - WINDOW_HEIGHT / 2) * LAG_FACTOR;
-    else
-        deltaY = 0;
-
-    // // Circle follow cursor movement with lag
-    // if (WINDOW_WIDTH / 2 > mouseX)
-    //     players[myPlayerNum].x -= (WINDOW_WIDTH / 2 - mouseX) * LAG_FACTOR;
-    // else if (WINDOW_WIDTH / 2 < mouseX)
-    //     players[myPlayerNum].x += (mouseX - WINDOW_WIDTH / 2) * LAG_FACTOR;
-
-    // if (WINDOW_HEIGHT / 2 > mouseY)
-    //     players[myPlayerNum].y -= (WINDOW_HEIGHT / 2 - mouseY) * LAG_FACTOR;
-    // else if (WINDOW_HEIGHT / 2 < mouseY)
-    //     players[myPlayerNum].y += (mouseY - WINDOW_HEIGHT / 2) * LAG_FACTOR;
-        
-
-
-    // Update player's position
-    myPlayer->x += deltaX;
-    myPlayer->y += deltaY;
-
-    // Ensure the player's position stays within bounds
-    if (myPlayer->x < -WORLD_SIZE)
-        myPlayer->x = -WORLD_SIZE;
-    else if (myPlayer->x > WORLD_SIZE)
-        myPlayer->x = WORLD_SIZE;
-
-    if (myPlayer->y < -WORLD_SIZE)
-        myPlayer->y = -WORLD_SIZE;
-    else if (myPlayer->y > WORLD_SIZE)
-        myPlayer->y = WORLD_SIZE;
-}
-
-// food methods
 void initializeFood(Food food[])
 {
     for (int i = 0; i < MAX_FOOD; i++)
@@ -296,7 +293,13 @@ void DrawPlayer(SDL_Renderer *renderer, Player players[], int myPlayerNum, int c
             }
             else
             {
+                char x_str[20];
+                sprintf(x_str, "%f", players[i].x);
+                char y_str[20];
+                sprintf(y_str, "%f", players[i].y);
                 DrawText(renderer, players[i].username, nameX, nameY, font, 0, 0, 150);
+                DrawText(renderer, x_str, nameX, nameY+50, font, 150, 0, 0);
+                DrawText(renderer, y_str, nameX, nameY+100, font, 150, 0, 0);
             }
         }
     }
@@ -316,6 +319,7 @@ void drawFood(SDL_Renderer *renderer, Food food[], int cameraX, int cameraY, flo
         }
     }
 }
+
 // collision methods
 void CollisionPlayers(Player players[])
 {
@@ -333,10 +337,11 @@ void CollisionPlayers(Player players[])
 
                     if ((disX <= players[i].radius && disY <= players[j].radius) || disX <= players[j].radius && disY <= players[i].radius)
                     {
-                        if (players[i].radius > players[j].radius && players[j].alive)
+                        if (players[i].alive && players[i].radius > players[j].radius && players[j].alive)
                         {
                             players[j].alive = false;
                             players[i].radius += players[j].radius / 2;
+                            //reSpawnPlayer(players, players[j]);
                         }
                     }
                 }
@@ -412,17 +417,12 @@ int main(int argc, char *argv[])
     initializePlayers(players);
 
     // generating the player
-    int i = 0;
-    while (players[i].alive)
-    {
-        i++;
-    }
-    int myPlayerNum = i;
-    insertPlayer(players, WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, INI_RADIUS, "yo");
+
+    int myPlayerNum = insertPlayer(players, "yo");
 
     // inserting example enemies
-    insertPlayer(players, WINDOW_WIDTH / 4, WINDOW_WIDTH / 4, 51, "malo 1");
-    insertPlayer(players, WINDOW_WIDTH / 3, WINDOW_WIDTH / 3, 35, "malo 2");
+    insertPlayer(players, "malo 1");
+    insertPlayer(players, "malo 2");
 
     // Camera position and scale
     float cameraX = 0;
@@ -451,18 +451,6 @@ int main(int argc, char *argv[])
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
 
-        // // Circle follow cursor movement with lag
-        // if (WINDOW_WIDTH / 2 > mouseX)
-        //     players[myPlayerNum].x -= (WINDOW_WIDTH / 2 - mouseX) * LAG_FACTOR;
-        // else if (WINDOW_WIDTH / 2 < mouseX)
-        //     players[myPlayerNum].x += (mouseX - WINDOW_WIDTH / 2) * LAG_FACTOR;
-
-        // if (WINDOW_HEIGHT / 2 > mouseY)
-        //     players[myPlayerNum].y -= (WINDOW_HEIGHT / 2 - mouseY) * LAG_FACTOR;
-        // else if (WINDOW_HEIGHT / 2 < mouseY)
-        //     players[myPlayerNum].y += (mouseY - WINDOW_HEIGHT / 2) * LAG_FACTOR;
-        
-        
         MovePlayer(&players[myPlayerNum], mouseX, mouseY);
                 
 
