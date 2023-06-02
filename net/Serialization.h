@@ -2,19 +2,39 @@
 #define SERIALIZABLE_MESSAGE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
-// Define your message structure
+
+#define MAX_PLAYERS 12
+
+typedef struct {
+    char username[20];
+    float x, y;
+    float radius;
+    bool alive;
+} Player;
+
+// Define the server's message structure
 typedef struct
 {
-    // Define your message fields
     int messageId;
+    int serverTimestamp;
+    Player players[MAX_PLAYERS];
+
+} ServerMessage;
+
+// Define the client's message structure
+typedef struct
+{
     char username[20];
-    int inputX;
-    int inputY;
+    float x, y;
+    float radius;
 
-    int size;
+    int playerIndex;
 
-} MyMessage;
+    int timestamp;
+
+} ClientMessage;
 
 // Define the Serializable struct
 typedef struct Serializable Serializable;
@@ -29,24 +49,44 @@ struct Serializable
     int32_t (*size)(Serializable*);
 };
 
-// Define the SerializableMessage struct implementing Serializable
+// Define the SerializableMessage struct implementing Serializable for the server's message
 typedef struct
 {
     Serializable base;
-    MyMessage message;
-} SerializableMessage;
+    ServerMessage message;
+} SerializableServerMessage;
 
-// Implementation of SerializableMessage functions
+// Define the SerializableMessage struct implementing Serializable for the client's message
+typedef struct
+{
+    Serializable base;
+    ClientMessage message;
+} SerializableClientMessage;
 
-void SerializableMessage_to_bin(Serializable* base);
-int SerializableMessage_from_bin(Serializable* base, char* data);
-char* SerializableMessage_data(Serializable* base);
-int32_t SerializableMessage_size(Serializable* base);
+// Implementation of SerializableMessage functions for the server's message
 
-// Create a new SerializableMessage instance
-SerializableMessage* new_SerializableMessage();
+void SerializableServerMessage_to_bin(Serializable* base);
+int SerializableServerMessage_from_bin(Serializable* base, char* data);
+char* SerializableServerMessage_data(Serializable* base);
+int32_t SerializableServerMessage_size(Serializable* base);
 
-// Free the memory allocated for a SerializableMessage instance
-void free_SerializableMessage(SerializableMessage* serializable);
+// Implementation of SerializableMessage functions for the client's message
+
+void SerializableClientMessage_to_bin(Serializable* base);
+int SerializableClientMessage_from_bin(Serializable* base, char* data);
+char* SerializableClientMessage_data(Serializable* base);
+int32_t SerializableClientMessage_size(Serializable* base);
+
+// Create a new SerializableServerMessage instance
+SerializableServerMessage* new_SerializableServerMessage();
+
+// Create a new SerializableClientMessage instance
+SerializableClientMessage* new_SerializableClientMessage();
+
+// Free the memory allocated for a SerializableServerMessage instance
+void free_SerializableServerMessage(SerializableServerMessage* serializable);
+
+// Free the memory allocated for a SerializableClientMessage instance
+void free_SerializableClientMessage(SerializableClientMessage* serializable);
 
 #endif /* SERIALIZABLE_MESSAGE_H */

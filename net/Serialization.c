@@ -1,57 +1,164 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include "Serialization.h"
 
-// Implementation of SerializableMessage functions
+// Implementation of SerializableServerMessage functions
 
-void SerializableMessage_to_bin(Serializable* base)
+void SerializableServerMessage_to_bin(Serializable* base)
 {
-    SerializableMessage* serializable = (SerializableMessage*)base;
-    // Convert MyMessage to binary representation and store in serializable->_data
-    // Set the size of the serialized data in serializable->_size
-    // ...
+    SerializableServerMessage* serializable = (SerializableServerMessage*)base;
+    ServerMessage* message = &(serializable->message);
+
+    int32_t size = sizeof(message->messageId) + sizeof(message->players);
+    char* data = (char*)malloc(size);
+
+    char* ptr = data;
+
+    memcpy(ptr, &(message->messageId), sizeof(message->messageId));
+    ptr += sizeof(message->messageId);
+
+    memcpy(ptr, message->serverTimestamp, sizeof(message->serverTimestamp));
+    ptr += sizeof(message->serverTimestamp);
+
+    memcpy(ptr, message->players, sizeof(message->players));
+
+    serializable->base._size = size;
+    serializable->base._data = data;
 }
 
-int SerializableMessage_from_bin(Serializable* base, char* data)
+int SerializableServerMessage_from_bin(Serializable* base, char* data)
 {
-    SerializableMessage* serializable = (SerializableMessage*)base;
-    // Reconstruct MyMessage from binary data and store in serializable->message
-    // Return 0 on success, -1 on failure
-    // ...
+    SerializableServerMessage* serializable = (SerializableServerMessage*)base;
+    ServerMessage* message = &(serializable->message);
+
+    char* ptr = data;
+
+    memcpy(&(message->messageId), ptr, sizeof(message->messageId));
+    ptr += sizeof(message->messageId);
+
+    memcpy(message->serverTimestamp, ptr, sizeof(message->serverTimestamp));
+    ptr += sizeof(message->serverTimestamp);
+
+    memcpy(message->players, ptr, sizeof(message->players));
+
+    return 0;
 }
 
-char* SerializableMessage_data(Serializable* base)
+char* SerializableServerMessage_data(Serializable* base)
 {
-    SerializableMessage* serializable = (SerializableMessage*)base;
-    // Return a pointer to the serialized data (serializable->_data)
+    SerializableServerMessage* serializable = (SerializableServerMessage*)base;
     return serializable->base._data;
 }
 
-int32_t SerializableMessage_size(Serializable* base)
+int32_t SerializableServerMessage_size(Serializable* base)
 {
-    SerializableMessage* serializable = (SerializableMessage*)base;
-    // Return the size of the serialized data (serializable->_size)
+    SerializableServerMessage* serializable = (SerializableServerMessage*)base;
     return serializable->base._size;
 }
 
-// Create a new SerializableMessage instance
-SerializableMessage* new_SerializableMessage()
+// Implementation of SerializableClientMessage functions
+
+void SerializableClientMessage_to_bin(Serializable* base)
 {
-    SerializableMessage* serializable = malloc(sizeof(SerializableMessage));
+    SerializableClientMessage* serializable = (SerializableClientMessage*)base;
+    ClientMessage* message = &(serializable->message);
+
+    int32_t size = sizeof(message->username) + sizeof(message->x) + sizeof(message->y) + sizeof(message->radius) + sizeof(message->playerIndex);
+    char* data = (char*)malloc(size);
+
+    char* ptr = data;
+
+    memcpy(ptr, message->username, sizeof(message->username));
+    ptr += sizeof(message->username);
+
+    memcpy(ptr, &(message->x), sizeof(message->x));
+    ptr += sizeof(message->x);
+
+    memcpy(ptr, &(message->y), sizeof(message->y));
+    ptr += sizeof(message->y);
+
+    memcpy(ptr, &(message->radius), sizeof(message->radius));
+    ptr += sizeof(message->radius);
+
+    memcpy(ptr, &(message->playerIndex), sizeof(message->playerIndex));
+
+    serializable->base._size = size;
+    serializable->base._data = data;
+}
+
+int SerializableClientMessage_from_bin(Serializable* base, char* data)
+{
+    SerializableClientMessage* serializable = (SerializableClientMessage*)base;
+    ClientMessage* message = &(serializable->message);
+
+    char* ptr = data;
+
+    memcpy(message->username, ptr, sizeof(message->username));
+    ptr += sizeof(message->username);
+
+    memcpy(&(message->x), ptr, sizeof(message->x));
+    ptr += sizeof(message->x);
+
+    memcpy(&(message->y), ptr, sizeof(message->y));
+    ptr += sizeof(message->y);
+
+    memcpy(&(message->radius), ptr, sizeof(message->radius));
+    ptr += sizeof(message->radius);
+
+    memcpy(&(message->playerIndex), ptr, sizeof(message->playerIndex));
+
+    return 0;
+}
+
+char* SerializableClientMessage_data(Serializable* base)
+{
+    SerializableClientMessage* serializable = (SerializableClientMessage*)base;
+    return serializable->base._data;
+}
+
+int32_t SerializableClientMessage_size(Serializable* base)
+{
+    SerializableClientMessage* serializable = (SerializableClientMessage*)base;
+    return serializable->base._size;
+}
+
+// Create a new SerializableServerMessage instance
+SerializableServerMessage* new_SerializableServerMessage()
+{
+    SerializableServerMessage* serializable = malloc(sizeof(SerializableServerMessage));
     serializable->base._size = 0;
     serializable->base._data = NULL;
-    serializable->base.to_bin = (void (*)(Serializable*))SerializableMessage_to_bin;
-    serializable->base.from_bin = (int (*)(Serializable*, char*))SerializableMessage_from_bin;
-    serializable->base.data = (char* (*)(Serializable*))SerializableMessage_data;
-    serializable->base.size = (int32_t (*)(Serializable*))SerializableMessage_size;
-    // Initialize other members of SerializableMessage if needed
-    // ...
+    serializable->base.to_bin = (void (*)(Serializable*))SerializableServerMessage_to_bin;
+    serializable->base.from_bin = (int (*)(Serializable*, char*))SerializableServerMessage_from_bin;
+    serializable->base.data = (char* (*)(Serializable*))SerializableServerMessage_data;
+    serializable->base.size = (int32_t (*)(Serializable*))SerializableServerMessage_size;
     return serializable;
 }
 
-// Free the memory allocated for a SerializableMessage instance
-void free_SerializableMessage(SerializableMessage* serializable)
+// Create a new SerializableClientMessage instance
+SerializableClientMessage* new_SerializableClientMessage()
+{
+    SerializableClientMessage* serializable = malloc(sizeof(SerializableClientMessage));
+    serializable->base._size = 0;
+    serializable->base._data = NULL;
+    serializable->base.to_bin = (void (*)(Serializable*))SerializableClientMessage_to_bin;
+    serializable->base.from_bin = (int (*)(Serializable*, char*))SerializableClientMessage_from_bin;
+    serializable->base.data = (char* (*)(Serializable*))SerializableClientMessage_data;
+    serializable->base.size = (int32_t (*)(Serializable*))SerializableClientMessage_size;
+    return serializable;
+}
+
+// Free the memory allocated for a SerializableServerMessage instance
+void free_SerializableServerMessage(SerializableServerMessage* serializable)
+{
+    free(serializable->base._data);
+    free(serializable);
+}
+
+// Free the memory allocated for a SerializableClientMessage instance
+void free_SerializableClientMessage(SerializableClientMessage* serializable)
 {
     free(serializable->base._data);
     free(serializable);
@@ -60,29 +167,50 @@ void free_SerializableMessage(SerializableMessage* serializable)
 // int main()
 // {
 //     // Example usage
-//     SerializableMessage* message = new_SerializableMessage();
+//     SerializableServerMessage* serverMessage = new_SerializableServerMessage();
+//     SerializableClientMessage* clientMessage = new_SerializableClientMessage();
 
-//     // Serialize the message
-//     message->base.to_bin((Serializable*)message);
+//     // Serialize the server message
+//     serverMessage->base.to_bin((Serializable*)serverMessage);
 
-//     // Get the serialized data
-//     char* serializedData = message->base.data((Serializable*)message);
+//     // Serialize the client message
+//     clientMessage->base.to_bin((Serializable*)clientMessage);
 
-//     // Get the size of the serialized data
-//     int32_t serializedSize = message->base.size((Serializable*)message);
+//     // Get the serialized server message data
+//     char* serializedServerData = serverMessage->base.data((Serializable*)serverMessage);
 
-//     // Print the serialized data and size
-//     printf("Serialized Data: %s\n", serializedData);
-//     printf("Serialized Size: %d\n", serializedSize);
+//     // Get the serialized client message data
+//     char* serializedClientData = clientMessage->base.data((Serializable*)clientMessage);
 
-//     // Deserialize the message
-//     message->base.from_bin((Serializable*)message, serializedData);
+//     // Get the size of the serialized server message data
+//     int32_t serializedServerSize = serverMessage->base.size((Serializable*)serverMessage);
 
-//     // Access the deserialized message fields
-//     printf("Deserialized Message ID: %d\n", message->message.messageId);
+//     // Get the size of the serialized client message data
+//     int32_t serializedClientSize = clientMessage->base.size((Serializable*)clientMessage);
+
+//     // Print the serialized server message data and size
+//     printf("Serialized Server Data: %s\n", serializedServerData);
+//     printf("Serialized Server Size: %d\n", serializedServerSize);
+
+//     // Print the serialized client message data and size
+//     printf("Serialized Client Data: %s\n", serializedClientData);
+//     printf("Serialized Client Size: %d\n", serializedClientSize);
+
+//     // Deserialize the server message
+//     serverMessage->base.from_bin((Serializable*)serverMessage, serializedServerData);
+
+//     // Deserialize the client message
+//     clientMessage->base.from_bin((Serializable*)clientMessage, serializedClientData);
+
+//     // Access the deserialized server message fields
+//     printf("Deserialized Server Message ID: %d\n", serverMessage->message.messageId);
+
+//     // Access the deserialized client message fields
+//     printf("Deserialized Client Username: %s\n", clientMessage->message.username);
 
 //     // Free the memory
-//     free_SerializableMessage(message);
+//     free_SerializableServerMessage(serverMessage);
+//     free_SerializableClientMessage(clientMessage);
 
 //     return 0;
 // }
