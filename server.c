@@ -56,15 +56,20 @@ void handleClient(int clientSocket, Player* players) {
 
 
     while (1) {
-        int32_t dataSize;
-        if (recv(clientSocket, &dataSize, sizeof(int32_t), 0) <= 0)
-            printf("Error: Failed to receive data size from socket %d\n" , clientSocket);
-            break;
+        checkTimeout(players);
 
-        char* data = (char*)malloc(dataSize);
-        if (recv(clientSocket, data, dataSize, 0) <= 0)
-            printf("Error: Failed to receive data from socket %d\n" , clientSocket);
+        int32_t dataSize;
+        if (recv(clientSocket, &dataSize, sizeof(int32_t), 0) < 0){
+            printf("Error: Failed to receive data size from socket %d\n" , clientSocket);
+            perror("recv");
             break;
+        }
+        char* data = (char*)malloc(dataSize);
+        if (recv(clientSocket, data, dataSize, 0) < 0){
+            printf("Error: Failed to receive data from socket %d\n" , clientSocket);
+            perror("recv");
+            break;
+        }
 
         if (clientMessage->base.from_bin((Serializable*)clientMessage, data) == -1) {
             printf("Error: Failed to deserialize client message\n");
@@ -72,6 +77,7 @@ void handleClient(int clientSocket, Player* players) {
         }
 
         int playerIndex = clientMessage->message.playerIndex;
+        printf("Received message from client %s with index %d\n", clientMessage->message.username, playerIndex);
         if (playerIndex >= 0 && playerIndex < MAX_PLAYERS) {
 
             lastClientTicks[playerIndex] = currentTimestamp;
@@ -122,11 +128,11 @@ void handleClient(int clientSocket, Player* players) {
         free(serializableServerMessage);
         free(data);
 
-        checkTimeout(players);
+ 
 
         if (lastClientTicks[playerIndex] < 0){
             free_SerializableClientMessage(clientMessage);
-            close(clientSocket);
+            //close(clientSocket);
             exit(0);
         }
     }
@@ -219,6 +225,11 @@ void handleClientRequests(int serverSocket, int clientSockets[], int maxClients)
 
         // Create a new process to handle the client
         int pid = fork();
+
+        //Send the player index to the client
+        
+
+
 
         if (pid < 0) {
             perror("Error: Failed to create child process\n");
