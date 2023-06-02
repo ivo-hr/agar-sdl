@@ -25,7 +25,7 @@ void handleClientRequests(int serverSocket, int clientSockets[], int maxClients)
 void handleCollisions(Player* players[]);
 void handleClient(int clientSocket, Player* players[]);
 long long getCurrentTimestamp();
-
+void checkTimeout(Player* players[]);
 int clientSockets[MAX_CLIENTS];
 long long lastClientTicks[MAX_CLIENTS];
 
@@ -50,7 +50,7 @@ void handleCollisions(Player* players[]) {
     }
 }
 
-void handleClient(int clientSocket, Player* players[]) {
+void handleClient(int clientSocket, Player* players) {
     SerializableClientMessage* clientMessage = new_SerializableClientMessage();
     long long currentTimestamp = getCurrentTimestamp();
 
@@ -255,11 +255,11 @@ void releaseSocket(int clientSocket, int* clientSockets, int maxClients) {
 
 void resetPlayerInfo(int playerIndex, Player* players) {
     // Reset player information
-    strcpy(players[playerIndex].username, "");
-    players[playerIndex].x = 0.0;
-    players[playerIndex].y = 0.0;
-    players[playerIndex].radius = 0.0;
-    players[playerIndex].alive = false;
+    strcpy(players[playerIndex]->username, "");
+    players[playerIndex]->x = 0.0;
+    players[playerIndex]->y = 0.0;
+    players[playerIndex]->radius = 0.0;
+    players[playerIndex]->alive = false;
     lastClientTicks[playerIndex] = 0;
 }
 
