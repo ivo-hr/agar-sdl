@@ -19,9 +19,6 @@ void SerializableServerMessage_to_bin(Serializable* base)
     memcpy(ptr, &(message->messageId), sizeof(message->messageId));
     ptr += sizeof(message->messageId);
 
-    memcpy(ptr, message->serverTimestamp, sizeof(message->serverTimestamp));
-    ptr += sizeof(message->serverTimestamp);
-
     memcpy(ptr, message->players, sizeof(message->players));
 
     serializable->base._size = size;
@@ -37,9 +34,6 @@ int SerializableServerMessage_from_bin(Serializable* base, char* data)
 
     memcpy(&(message->messageId), ptr, sizeof(message->messageId));
     ptr += sizeof(message->messageId);
-
-    memcpy(message->serverTimestamp, ptr, sizeof(message->serverTimestamp));
-    ptr += sizeof(message->serverTimestamp);
 
     memcpy(message->players, ptr, sizeof(message->players));
 
