@@ -1,5 +1,20 @@
 # agar-sdl
-An agar.io clone made in SDL to be run on linux, on a client-server network structure.
+An agar.io clone made in SDL to be run on linux, on a TCP client-server network structure.
+
+## Installation guide (test)
+1. Clone the repo
+2. Launch your terminal of choice in the directory you cloned the repo, and type:
+```
+sudo apt-get install libsdl2-dev 
+```
+3. Once done, make the main.c file like so:[^1]
+``` 
+gcc -o main main.c $(sdl2-config --cflags --libs) -lSDL2_ttf 
+```
+4. Lastly, run!
+```
+./main 1234
+```
 
 ## Installation guide (server)
 1. Clone the repo
@@ -9,7 +24,7 @@ sudo apt-get install libsdl2-dev
 ```
 3. Once done, make the server.c AND the Serialization.c files like so:[^1]
 ``` 
-gcc -c server.c -o server.o `sdl2-config --cflags --libs`
+gcc -c server.c -o server.o `sdl2-config --cflags --libs` -lm
 gcc -c net/Serialization.c -o serialization.o
 ```
 4. Merge the server.o and serialization.o files into one make file:
