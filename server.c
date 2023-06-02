@@ -57,14 +57,15 @@ void handleClient(int clientSocket, Player* players) {
 
     while (1) {
         int32_t dataSize;
-        if (recv(clientSocket, &dataSize, sizeof(int32_t), 0) <= 0)
+        if (recv(clientSocket, &dataSize, sizeof(int32_t), 0) <= 0){
             printf("Error: Failed to receive data size from socket %d\n" , clientSocket);
             break;
-
+        }
         char* data = (char*)malloc(dataSize);
-        if (recv(clientSocket, data, dataSize, 0) <= 0)
+        if (recv(clientSocket, data, dataSize, 0) <= 0){
             printf("Error: Failed to receive data from socket %d\n" , clientSocket);
             break;
+        }
 
         if (clientMessage->base.from_bin((Serializable*)clientMessage, data) == -1) {
             printf("Error: Failed to deserialize client message\n");
@@ -126,7 +127,7 @@ void handleClient(int clientSocket, Player* players) {
 
         if (lastClientTicks[playerIndex] < 0){
             free_SerializableClientMessage(clientMessage);
-            close(clientSocket);
+            //close(clientSocket);
             exit(0);
         }
     }
