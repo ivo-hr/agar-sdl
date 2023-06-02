@@ -1,7 +1,9 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
@@ -12,6 +14,7 @@
 #define FOOD_RADIUS 10
 
 typedef struct {
+    char username[20];
     float x, y;
     float radius;
     bool alive;
@@ -30,7 +33,7 @@ void initializePlayers(Player players[]) {
     }
 }
 
-void insertPlayer(Player players[], int x, int y, int radius) {
+void insertPlayer(Player players[], int x, int y, int radius, const char* name) {
 
     int i = 0;
     while (players[i].alive)
@@ -39,6 +42,8 @@ void insertPlayer(Player players[], int x, int y, int radius) {
     players[i].y = y;
     players[i].radius = radius;
     players[i].alive = true;
+    strncpy(players[i].username, name, sizeof(players[i].username) - 1);
+    players[i].username[sizeof(players[i].username) - 1] = '\0';
 }
 
 void insertFood(Food food[], int x, int y) {
@@ -77,6 +82,88 @@ void removeFood(Food food[], int index) {
 }
 
 //render methods
+void DrawText(SDL_Renderer* renderer, const char* text, int x, int y, TTF_Font* font, Uint8 red, Uint8 green, Uint8 blue)
+{
+    SDL_Color color = { red, green, blue};
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, text, color);
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    SDL_Rect textRect;
+    textRect.x = x;
+    textRect.y = y;
+    textRect.w = textSurface->w;
+    textRect.h = textSurface->h;
+
+    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+
+    SDL_DestroyTexture(textTexture);
+    SDL_FreeSurface(textSurface);
+}
+
+void Ranking(SDL_Renderer* renderer, Player players[], int numPlayers, TTF_Font* font)
+{
+    int fontSize = 20;
+    int padding = 10;
+    int lineHeight = fontSize + padding;
+    int initialX = padding;
+    int initialY = padding;
+
+    // Create a temporary array to hold the players
+    Player sortedPlayers[numPlayers];
+    memcpy(sortedPlayers, players, sizeof(Player) * numPlayers);
+
+    // Sort the temporary array by radius in descending order
+    for (int i = 0; i < numPlayers - 1; i++) {
+        for (int j = 0; j < numPlayers - i - 1; j++) {
+            if (sortedPlayers[j].radius < sortedPlayers[j + 1].radius) {
+                Player temp = sortedPlayers[j];
+                sortedPlayers[j] = sortedPlayers[j + 1];
+                sortedPlayers[j + 1] = temp;
+            }
+        }
+    }
+
+    // Render the ranking
+    char rankText[20];
+    snprintf(rankText, sizeof(rankText), "Ranking");
+    DrawText(renderer, rankText, initialX, initialY, font, 0, 0, 0);
+    for (int i = 0; i < numPlayers; i++) {
+        if(sortedPlayers[i].alive)
+        {
+
+            int rank = i + 1;
+            snprintf(rankText, sizeof(rankText), "%d.", rank);
+
+            char playerInfo[100];
+            int radius = (int)sortedPlayers[i].radius;
+            snprintf(playerInfo, sizeof(playerInfo), "%s: %d", sortedPlayers[i].username, radius);
+            Uint8 red = 0;
+            Uint8 green = 0;
+            Uint8 blue = 0;
+            if(i==0)
+            {
+                red = 239;
+                green = 184;
+                blue = 16;
+            }
+            else if(i==1)
+            {
+                red = 138;
+                green = 149;
+                blue = 151;
+            }
+            else if(i==2)
+            {
+                red = 191;
+                green = 137;
+                blue = 112;   
+            }
+            DrawText(renderer, rankText, initialX, initialY + (i + 1) * lineHeight, font, red, green, blue);
+            DrawText(renderer, playerInfo, initialX + strlen(rankText) * fontSize, initialY + (i + 1) * lineHeight, font, red, green, blue);
+        }
+    }
+}
+
+
 void DrawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius, Uint8 red, Uint8 green, Uint8 blue) {
     SDL_SetRenderDrawColor(renderer, red, green, blue, 255);
 
@@ -91,10 +178,9 @@ void DrawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius, Ui
     }
 }
 
-void DrawPlayer(SDL_Renderer* renderer, Player players[], int myPlayerNum, int cameraX, int cameraY, float scale)
+void DrawPlayer(SDL_Renderer* renderer, Player players[], int myPlayerNum, int cameraX, int cameraY, float scale, TTF_Font* font)
 {
     // Render the players with the camera offset
-    int i = 0;
     for(int i = 0; i < MAX_PLAYERS; i++) {
         if(players[i].alive)
         {
@@ -112,7 +198,29 @@ void DrawPlayer(SDL_Renderer* renderer, Player players[], int myPlayerNum, int c
             {
                 DrawCircle(renderer, renderX, renderY, renderRadius, 0, 0, 150);
                 DrawCircle(renderer, renderX, renderY, renderRadius * 0.95, 0, 0, 255);
+            }          
+        }
+    }
+    for(int i = 0; i < MAX_PLAYERS; i++) {
+        if(players[i].alive)
+        {
+
+            float renderX = (players[i].x - cameraX) * scale;
+            float renderY = (players[i].y - cameraY) * scale;
+            float renderRadius = players[i].radius * scale;
+            int nameWidth, nameHeight;
+            TTF_SizeText(font, players[i].username, &nameWidth, &nameHeight);
+            int nameX = renderX - nameWidth / 2;
+            int nameY = renderY + renderRadius + 10 * scale; // Adjust the vertical position based on scale
+
+            if (i != myPlayerNum)
+            {
+                DrawText(renderer, players[i].username, nameX, nameY, font, 150, 0, 0);
             }
+            else
+            {
+                DrawText(renderer, players[i].username, nameX, nameY, font, 0, 0, 150);
+            }          
         }
     }
 }
@@ -184,7 +292,6 @@ void FollowPlayer(Player myPlayer, float* cameraX, float* cameraY, float* scale)
     }
 }
 
-
 int main(int argc, char* argv[]) {
 
     if (argc < 2) {
@@ -192,16 +299,21 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     SDL_Init(SDL_INIT_VIDEO);
-
+    TTF_Init();
     char windowTitle[100];
     sprintf(windowTitle, "agar.SDL - Server at %s", argv[1]);
     SDL_Window* window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
+    TTF_Font* font = TTF_OpenFont("/usr/share/fonts/truetype/tlwg/TlwgTypo-Bold.ttf", 24);
+
+    if (font == NULL) {
+        printf("Failed to load font: %s\n", TTF_GetError());
+        return 1;
+    }
 
     Food food[MAX_FOOD];
     initializeFood(food);
-    
 
     //esta parte quitarla cuando se meta en el servidor
     Player players[MAX_PLAYERS];
@@ -213,11 +325,11 @@ int main(int argc, char* argv[]) {
         i++;
     }
     int myPlayerNum = i;
-    insertPlayer(players, WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, INI_RADIUS);
+    insertPlayer(players, WINDOW_WIDTH / 2, WINDOW_WIDTH / 2, INI_RADIUS, "yo");
 
     //inserting example enemies
-    insertPlayer(players, WINDOW_WIDTH / 4, WINDOW_WIDTH /4, 51);
-    insertPlayer(players, WINDOW_WIDTH / 3, WINDOW_WIDTH /3, 35);
+    insertPlayer(players, WINDOW_WIDTH / 4, WINDOW_WIDTH /4, 51, "malo 1");
+    insertPlayer(players, WINDOW_WIDTH / 3, WINDOW_WIDTH /3, 35, "malo 2");
 
 
 
@@ -266,7 +378,10 @@ int main(int argc, char* argv[]) {
         //esto hay que meterlo en el server
         CollisionPlayers(players);
 
-        DrawPlayer(renderer, players, myPlayerNum, cameraX, cameraY, scale);
+        DrawPlayer(renderer, players, myPlayerNum, cameraX, cameraY, scale, font);
+
+        size_t size = sizeof(players) / sizeof(players[0]);
+        Ranking(renderer, players, size, font);
 
         if(CollisionFood(food, players[myPlayerNum], scale))
             players[myPlayerNum].radius += 2;
@@ -274,8 +389,12 @@ int main(int argc, char* argv[]) {
 
         SDL_RenderPresent(renderer);
     }
+    // esto  igual hay que quitarlo
+    TTF_CloseFont(font);
 
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
 }
+
