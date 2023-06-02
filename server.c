@@ -9,7 +9,7 @@
 #include <time.h>
 
 #include "net/Serialization.h"
-#include "net/Socket.h"
+//#include "net/Socket.h"
 
 #define SERVER_PORT 8080
 #define MAX_PLAYERS 12
@@ -22,26 +22,26 @@
 int createServerSocket(int port);
 int acceptClientConnection(int serverSocket);
 void handleClientRequests(int serverSocket, int clientSockets[], int maxClients);
-void handleCollisions(Player* players[]);
-void handleClient(int clientSocket, Player* players[]);
+void handleCollisions(Player* players);
+void handleClient(int clientSocket, Player* players);
 long long getCurrentTimestamp();
-
+void checkTimeout(Player* players);
 int clientSockets[MAX_CLIENTS];
 long long lastClientTicks[MAX_CLIENTS];
 
-void handleCollisions(Player* players[]) {
+void handleCollisions(Player* players) {
     for (int i = 0; i < MAX_PLAYERS; i++) {
-        if (players[i]->alive) {
+        if (players[i].alive) {
             for (int j = 0; j < MAX_PLAYERS; j++) {
-                if (players[j]->alive && i != j) {
-                    float disX = fabs(players[i]->x - players[j]->x);
-                    float disY = fabs(players[i]->y - players[j]->y);
-                    float radiusSum = players[i]->radius + players[j]->radius;
+                if (players[j].alive && i != j) {
+                    float disX = fabs(players[i].x - players[j].x);
+                    float disY = fabs(players[i].y - players[j].y);
+                    float radiusSum = players[i].radius + players[j].radius;
 
-                    if ((disX <= radiusSum && disY <= radiusSum) || disX <= players[j]->radius && disY <= players[i]->radius) {
-                        if (players[i]->radius > players[j]->radius && players[j]->alive) {
-                            players[j]->alive = false;
-                            players[i]->radius += players[j]->radius / 2;
+                    if ((disX <= radiusSum && disY <= radiusSum) || disX <= players[j].radius && disY <= players[i].radius) {
+                        if (players[i].radius > players[j].radius && players[j].alive) {
+                            players[j].alive = false;
+                            players[i].radius += players[j].radius / 2;
                         }
                     }
                 }
@@ -50,7 +50,7 @@ void handleCollisions(Player* players[]) {
     }
 }
 
-void handleClient(int clientSocket, Player* players[]) {
+void handleClient(int clientSocket, Player* players) {
     SerializableClientMessage* clientMessage = new_SerializableClientMessage();
     long long currentTimestamp = getCurrentTimestamp();
 
@@ -78,8 +78,8 @@ void handleClient(int clientSocket, Player* players[]) {
 
             // Calculate velocity based on the elapsed time since the last received message
             float deltaTime = (currentTimestamp - clientMessage->message.timestamp) / 1000.0;
-            float velocity = sqrtf(powf(clientMessage->message.x - players[playerIndex]->x, 2) +
-                                   powf(clientMessage->message.y - players[playerIndex]->y, 2)) / deltaTime;
+            float velocity = sqrtf(powf(clientMessage->message.x - players[playerIndex].x, 2) +
+                                   powf(clientMessage->message.y - players[playerIndex].y, 2)) / deltaTime;
 
 
             if (velocity > MAX_VELOCITY) {
@@ -87,25 +87,24 @@ void handleClient(int clientSocket, Player* players[]) {
 
                 // Backtrack the client position to a reasonable value
                 float backtrackDistance = MAX_VELOCITY * deltaTime;
-                float directionX = (players[playerIndex]->x - clientMessage->message.x) / velocity;
-                float directionY = (players[playerIndex]->y - clientMessage->message.y) / velocity;
+                float directionX = (players[playerIndex].x - clientMessage->message.x) / velocity;
+                float directionY = (players[playerIndex].y - clientMessage->message.y) / velocity;
 
-                players[playerIndex]->x += backtrackDistance * directionX;
-                players[playerIndex]->y += backtrackDistance * directionY;
+                players[playerIndex].x += backtrackDistance * directionX;
+                players[playerIndex].y += backtrackDistance * directionY;
             } else {
-                players[playerIndex]->x = clientMessage->message.x;
-                players[playerIndex]->y = clientMessage->message.y;
+                players[playerIndex].x = clientMessage->message.x;
+                players[playerIndex].y = clientMessage->message.y;
             }
 
-            players[playerIndex]->radius = clientMessage->message.radius;
-            players[playerIndex]->alive = true;
+            players[playerIndex].radius = clientMessage->message.radius;
+            players[playerIndex].alive = true;
         }
 
         handleCollisions(players);
 
         ServerMessage serverMessage;
         serverMessage.messageId = 1;
-        serverMessage.serverTimestamp = getCurrentTimestamp();
         memcpy(serverMessage.players, players, sizeof(Player) * MAX_PLAYERS);
 
         SerializableServerMessage* serializableServerMessage = new_SerializableServerMessage();
@@ -263,11 +262,11 @@ void resetPlayerInfo(int playerIndex, Player* players) {
     lastClientTicks[playerIndex] = 0;
 }
 
-void checkTimeout(Player* players[]) {
+void checkTimeout(Player* players) {
     long long currentTimestamp = getCurrentTimestamp();
 
     for (int i = 0; i < MAX_PLAYERS; i++) {
-        if (players[i]->alive && currentTimestamp - lastClientTicks[i] > MAX_TIMEOUT) {
+        if (players[i].alive && currentTimestamp - lastClientTicks[i] > MAX_TIMEOUT) {
             // Player has timed out, handle the disconnection
             printf("Player with index %d has timed out. Disconnecting...\n", i);
             

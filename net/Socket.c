@@ -57,7 +57,7 @@ int acceptClientConnection(int serverSocket) {
 void handleClientRequests(int serverSocket, int clientSockets[], int maxClients) {
     int activity, i, valread, sd, maxSocket;
     struct sockaddr_in clientAddress;
-    socklen_t clientAddressLength;
+    socklen_t clientAddressLength = sizeof(struct sockaddr_in);
     char buffer[1024];
 
     // Accept incoming connections and handle client requests
@@ -106,6 +106,7 @@ void handleClientRequests(int serverSocket, int clientSockets[], int maxClients)
                     getpeername(sd, (struct sockaddr *)&clientAddress, &clientAddressLength);
                     printf("Client disconnected: IP %s, Port %d\n", inet_ntoa(clientAddress.sin_addr), ntohs(clientAddress.sin_port));
                     close(sd);
+                    FD_CLR(sd, &readSet);
                     clientSockets[i] = 0;
                 } else {
                     // Process client request and send response

@@ -18,7 +18,6 @@ typedef struct {
 typedef struct
 {
     int messageId;
-    int serverTimestamp;
     Player players[MAX_PLAYERS];
 
 } ServerMessage;
