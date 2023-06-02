@@ -1,3 +1,8 @@
+//Enrique JG
+//Manuel PM
+
+//MESSAGE STRUCTURES AND SERIALIZATION
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
