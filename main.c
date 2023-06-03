@@ -1,7 +1,7 @@
 //Enrique JG
 //Manuel PM
 
-//TEST SCRIPT FOR THE GAME
+//TEST
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>

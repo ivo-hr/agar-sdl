@@ -64,24 +64,24 @@ void SerializableClientMessage_to_bin(Serializable* base)
     SerializableClientMessage* serializable = (SerializableClientMessage*)base;
     ClientMessage* message = &(serializable->message);
 
-    int32_t size = sizeof(message->username) + sizeof(message->x) + sizeof(message->y) + sizeof(message->radius) + sizeof(message->playerIndex);
+    int32_t size = sizeof(message->player.username) + sizeof(message->player.x) + sizeof(message->player.y) + sizeof(message->player.radius) + sizeof(message->player.playerIndex);
     char* data = (char*)malloc(size);
 
     char* ptr = data;
 
-    memcpy(ptr, message->username, sizeof(message->username));
-    ptr += sizeof(message->username);
+    memcpy(ptr, message->player.username, sizeof(message->player.username));
+    ptr += sizeof(message->player.username);
 
-    memcpy(ptr, &(message->x), sizeof(message->x));
-    ptr += sizeof(message->x);
+    memcpy(ptr, &(message->player.x), sizeof(message->player.x));
+    ptr += sizeof(message->player.x);
 
-    memcpy(ptr, &(message->y), sizeof(message->y));
-    ptr += sizeof(message->y);
+    memcpy(ptr, &(message->player.y), sizeof(message->player.y));
+    ptr += sizeof(message->player.y);
 
-    memcpy(ptr, &(message->radius), sizeof(message->radius));
-    ptr += sizeof(message->radius);
+    memcpy(ptr, &(message->player.radius), sizeof(message->player.radius));
+    ptr += sizeof(message->player.radius);
 
-    memcpy(ptr, &(message->playerIndex), sizeof(message->playerIndex));
+    memcpy(ptr, &(message->player.playerIndex), sizeof(message->player.playerIndex));
 
     serializable->base._size = size;
     serializable->base._data = data;
@@ -94,19 +94,19 @@ int SerializableClientMessage_from_bin(Serializable* base, char* data)
 
     char* ptr = data;
 
-    memcpy(message->username, ptr, sizeof(message->username));
-    ptr += sizeof(message->username);
+    memcpy(message->player.username, ptr, sizeof(message->player.username));
+    ptr += sizeof(message->player.username);
 
-    memcpy(&(message->x), ptr, sizeof(message->x));
-    ptr += sizeof(message->x);
+    memcpy(&(message->player.x), ptr, sizeof(message->player.x));
+    ptr += sizeof(message->player.x);
 
-    memcpy(&(message->y), ptr, sizeof(message->y));
-    ptr += sizeof(message->y);
+    memcpy(&(message->player.y), ptr, sizeof(message->player.y));
+    ptr += sizeof(message->player.y);
 
-    memcpy(&(message->radius), ptr, sizeof(message->radius));
-    ptr += sizeof(message->radius);
+    memcpy(&(message->player.radius), ptr, sizeof(message->player.radius));
+    ptr += sizeof(message->player.radius);
 
-    memcpy(&(message->playerIndex), ptr, sizeof(message->playerIndex));
+    memcpy(&(message->player.playerIndex), ptr, sizeof(message->player.playerIndex));
 
     return 0;
 }
