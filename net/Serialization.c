@@ -11,12 +11,13 @@
 
 // Implementation of SerializableServerMessage functions
 
+
 void SerializableServerMessage_to_bin(Serializable* base)
 {
     SerializableServerMessage* serializable = (SerializableServerMessage*)base;
     ServerMessage* message = &(serializable->message);
 
-    int32_t size = sizeof(message->messageId) + sizeof(message->players);
+    int32_t size = sizeof(message->messageId) + sizeof(Player) * MAX_PLAYERS;
     char* data = (char*)malloc(size);
 
     char* ptr = data;
@@ -24,7 +25,10 @@ void SerializableServerMessage_to_bin(Serializable* base)
     memcpy(ptr, &(message->messageId), sizeof(message->messageId));
     ptr += sizeof(message->messageId);
 
-    memcpy(ptr, message->players, sizeof(message->players));
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        memcpy(ptr, &(message->players[i]), sizeof(Player));
+        ptr += sizeof(Player);
+    }
 
     serializable->base._size = size;
     serializable->base._data = data;
@@ -40,7 +44,10 @@ int SerializableServerMessage_from_bin(Serializable* base, char* data)
     memcpy(&(message->messageId), ptr, sizeof(message->messageId));
     ptr += sizeof(message->messageId);
 
-    memcpy(message->players, ptr, sizeof(message->players));
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        memcpy(&(message->players[i]), ptr, sizeof(Player));
+        ptr += sizeof(Player);
+    }
 
     return 0;
 }
@@ -64,13 +71,14 @@ void SerializableClientMessage_to_bin(Serializable* base)
     SerializableClientMessage* serializable = (SerializableClientMessage*)base;
     ClientMessage* message = &(serializable->message);
 
-    int32_t size = sizeof(message->player.username) + sizeof(message->player.x) + sizeof(message->player.y) + sizeof(message->player.radius) + sizeof(message->player.playerIndex);
+    int32_t size = sizeof(message->player.playerIndex) + sizeof(message->player.x) + sizeof(message->player.y) + sizeof(message->player.radius) + sizeof(message->player.alive) + sizeof(message->timestamp);
+
     char* data = (char*)malloc(size);
 
     char* ptr = data;
 
-    memcpy(ptr, message->player.username, sizeof(message->player.username));
-    ptr += sizeof(message->player.username);
+    memcpy(ptr, &(message->player.playerIndex), sizeof(message->player.playerIndex));
+    ptr += sizeof(message->player.playerIndex);
 
     memcpy(ptr, &(message->player.x), sizeof(message->player.x));
     ptr += sizeof(message->player.x);
@@ -81,7 +89,10 @@ void SerializableClientMessage_to_bin(Serializable* base)
     memcpy(ptr, &(message->player.radius), sizeof(message->player.radius));
     ptr += sizeof(message->player.radius);
 
-    memcpy(ptr, &(message->player.playerIndex), sizeof(message->player.playerIndex));
+    memcpy(ptr, &(message->player.alive), sizeof(message->player.alive));
+    ptr += sizeof(message->player.alive);
+
+    memcpy(ptr, &(message->timestamp), sizeof(message->timestamp));
 
     serializable->base._size = size;
     serializable->base._data = data;
@@ -94,8 +105,8 @@ int SerializableClientMessage_from_bin(Serializable* base, char* data)
 
     char* ptr = data;
 
-    memcpy(message->player.username, ptr, sizeof(message->player.username));
-    ptr += sizeof(message->player.username);
+    memcpy(&(message->player.playerIndex), ptr, sizeof(message->player.playerIndex));
+    ptr += sizeof(message->player.playerIndex);
 
     memcpy(&(message->player.x), ptr, sizeof(message->player.x));
     ptr += sizeof(message->player.x);
@@ -106,7 +117,10 @@ int SerializableClientMessage_from_bin(Serializable* base, char* data)
     memcpy(&(message->player.radius), ptr, sizeof(message->player.radius));
     ptr += sizeof(message->player.radius);
 
-    memcpy(&(message->player.playerIndex), ptr, sizeof(message->player.playerIndex));
+    memcpy(&(message->player.alive), ptr, sizeof(message->player.alive));
+    ptr += sizeof(message->player.alive);
+
+    memcpy(&(message->timestamp), ptr, sizeof(message->timestamp));
 
     return 0;
 }
@@ -149,67 +163,107 @@ SerializableClientMessage* new_SerializableClientMessage()
     return serializable;
 }
 
-// Free the memory allocated for a SerializableServerMessage instance
 void free_SerializableServerMessage(SerializableServerMessage* serializable)
 {
     free(serializable->base._data);
     free(serializable);
 }
 
-// Free the memory allocated for a SerializableClientMessage instance
 void free_SerializableClientMessage(SerializableClientMessage* serializable)
 {
     free(serializable->base._data);
     free(serializable);
 }
 
-// int main()
-// {
-//     // Example usage
-//     SerializableServerMessage* serverMessage = new_SerializableServerMessage();
-//     SerializableClientMessage* clientMessage = new_SerializableClientMessage();
 
-//     // Serialize the server message
-//     serverMessage->base.to_bin((Serializable*)serverMessage);
+int main()
+{
+    // Create a sample server message
+    ServerMessage serverMessage;
+    serverMessage.messageId = 123;
 
-//     // Serialize the client message
-//     clientMessage->base.to_bin((Serializable*)clientMessage);
+    Player player1 = {0, 10.0f, 20.0f, 5.0f, true};
+    Player player2 = {1, 30.0f, 40.0f, 7.0f, false};
+    Player player3 = {2, 50.0f, 60.0f, 9.0f, true};
 
-//     // Get the serialized server message data
-//     char* serializedServerData = serverMessage->base.data((Serializable*)serverMessage);
+    serverMessage.players[0] = player1;
+    serverMessage.players[1] = player2;
+    serverMessage.players[2] = player3;
 
-//     // Get the serialized client message data
-//     char* serializedClientData = clientMessage->base.data((Serializable*)clientMessage);
+    // Create a sample client message
+    ClientMessage clientMessage;
+    clientMessage.player.playerIndex = 2;
+    clientMessage.player.x = 15.0f;
+    clientMessage.player.y = 25.0f;
+    clientMessage.player.radius = 3.0f;
 
-//     // Get the size of the serialized server message data
-//     int32_t serializedServerSize = serverMessage->base.size((Serializable*)serverMessage);
+    clientMessage.timestamp = 456;
 
-//     // Get the size of the serialized client message data
-//     int32_t serializedClientSize = clientMessage->base.size((Serializable*)clientMessage);
+    // Create SerializableServerMessage instance and serialize the server message
+    SerializableServerMessage* serializedServerMessage = new_SerializableServerMessage();
+    serializedServerMessage->message = serverMessage;
+    serializedServerMessage->base.to_bin((Serializable*)serializedServerMessage);
 
-//     // Print the serialized server message data and size
-//     printf("Serialized Server Data: %s\n", serializedServerData);
-//     printf("Serialized Server Size: %d\n", serializedServerSize);
+    // Create SerializableClientMessage instance and serialize the client message
+    SerializableClientMessage* serializedClientMessage = new_SerializableClientMessage();
+    serializedClientMessage->message = clientMessage;
+    serializedClientMessage->base.to_bin((Serializable*)serializedClientMessage);
 
-//     // Print the serialized client message data and size
-//     printf("Serialized Client Data: %s\n", serializedClientData);
-//     printf("Serialized Client Size: %d\n", serializedClientSize);
+    // Get the serialized server message data and size
+    char* serializedServerData = serializedServerMessage->base.data((Serializable*)serializedServerMessage);
+    int32_t serializedServerSize = serializedServerMessage->base.size((Serializable*)serializedServerMessage);
 
-//     // Deserialize the server message
-//     serverMessage->base.from_bin((Serializable*)serverMessage, serializedServerData);
+    // Get the serialized client message data and size
+    char* serializedClientData = serializedClientMessage->base.data((Serializable*)serializedClientMessage);
+    int32_t serializedClientSize = serializedClientMessage->base.size((Serializable*)serializedClientMessage);
 
-//     // Deserialize the client message
-//     clientMessage->base.from_bin((Serializable*)clientMessage, serializedClientData);
+    // Print the serialized server message data and size
+    printf("Serialized Server Data:\n");
+    for (int i = 0; i < serializedServerSize; i++) {
+        printf("%02x ", serializedServerData[i] & 0xFF);
+    }
+    printf("\nSerialized Server Size: %d bytes\n", serializedServerSize);
 
-//     // Access the deserialized server message fields
-//     printf("Deserialized Server Message ID: %d\n", serverMessage->message.messageId);
+    // Print the serialized client message data and size
+    printf("Serialized Client Data:\n");
+    for (int i = 0; i < serializedClientSize; i++) {
+        printf("%02x ", serializedClientData[i] & 0xFF);
+    }
+    printf("\nSerialized Client Size: %d bytes\n", serializedClientSize);
 
-//     // Access the deserialized client message fields
-//     printf("Deserialized Client Username: %s\n", clientMessage->message.username);
+    // Deserialize the server message
+SerializableServerMessage* deserializedSerializedServerMessage = new_SerializableServerMessage();
+deserializedSerializedServerMessage->base.from_bin((Serializable*)deserializedSerializedServerMessage, serializedServerData);
+printf("\nDeserialized Server Message...");
 
-//     // Free the memory
-//     free_SerializableServerMessage(serverMessage);
-//     free_SerializableClientMessage(clientMessage);
+// Deserialize the client message
+SerializableClientMessage* deserializedSerializedClientMessage = new_SerializableClientMessage();
+deserializedSerializedClientMessage->base.from_bin((Serializable*)deserializedSerializedClientMessage, serializedClientData);
+printf("\nDeserialized Client Message...");
 
-//     return 0;
-// }
+// Access the deserialized server message fields
+printf("\nDeserialized Server Message ID: %d\n", deserializedSerializedServerMessage->message.messageId);
+printf("Deserialized Server Player 1: %d\n", deserializedSerializedServerMessage->message.players[0].playerIndex);
+printf("Deserialized Server Player 2: %d\n", deserializedSerializedServerMessage->message.players[1].playerIndex);
+printf("Deserialized Server Player 3: %d\n", deserializedSerializedServerMessage->message.players[2].playerIndex);
+printf("Deserialized Server Player 4: %d\n", deserializedSerializedServerMessage->message.players[3].playerIndex);
+printf("Deserialized Server Player 5: %d\n", deserializedSerializedServerMessage->message.players[4].playerIndex);
+printf("Deserialized Server Player 6: %d\n", deserializedSerializedServerMessage->message.players[5].playerIndex);
+printf("Deserialized Server Player 7: %d\n", deserializedSerializedServerMessage->message.players[6].playerIndex);
+printf("Deserialized Server Player 8: %d\n", deserializedSerializedServerMessage->message.players[7].playerIndex);
+
+
+// Access the deserialized client message fields
+printf("Deserialized Client Player Index: %d\n", deserializedSerializedClientMessage->message.player.playerIndex);
+printf("Deserialized Client X: %.2f\n", deserializedSerializedClientMessage->message.player.x);
+printf("Deserialized Client Y: %.2f\n", deserializedSerializedClientMessage->message.player.y);
+printf("Deserialized Client Radius: %.2f\n", deserializedSerializedClientMessage->message.player.radius);
+printf("Deserialized Client Timestamp: %d\n", deserializedSerializedClientMessage->message.timestamp);
+
+// Free the memory
+free_SerializableServerMessage(deserializedSerializedServerMessage);
+free_SerializableClientMessage(deserializedSerializedClientMessage);
+
+
+    return 0;
+}
