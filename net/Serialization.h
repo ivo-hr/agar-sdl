@@ -13,7 +13,6 @@
 #define MAX_PLAYERS 12
 
 typedef struct {
-    char username[20];
     int playerIndex;
     float x, y;
     float radius;
@@ -27,6 +26,7 @@ typedef struct
     Player players[MAX_PLAYERS];
 
 } ServerMessage;
+
 
 // Define the client's message structure
 typedef struct
