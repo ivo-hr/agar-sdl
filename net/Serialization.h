@@ -14,6 +14,7 @@
 
 typedef struct {
     char username[20];
+    int playerIndex;
     float x, y;
     float radius;
     bool alive;
@@ -30,11 +31,7 @@ typedef struct
 // Define the client's message structure
 typedef struct
 {
-    char username[20];
-    float x, y;
-    float radius;
-
-    int playerIndex;
+    Player player;
 
     int timestamp;
 
