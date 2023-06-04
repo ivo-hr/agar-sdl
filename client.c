@@ -434,7 +434,7 @@ int main()
     SDL_Window *window = SDL_CreateWindow("Game", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    TTF_Font *font = TTF_OpenFont("arial.ttf", 16);
+    TTF_Font *font = TTF_OpenFont("../Assets/arial.ttf", 16);
     if (!font)
     {
         printf("Error al cargar la fuente\n");
@@ -484,7 +484,7 @@ int main()
 
         // Actualizar posición del jugador local en el servidor
         sendClientMessageToServer(makeClientMessage(myPlayer), sockfd);
-            //send(sockfd, &clientMessage, sizeof(clientMessage), 0);
+        //send(sockfd, &clientMessage, sizeof(clientMessage), 0);
 
         // Dibujar el juego
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
