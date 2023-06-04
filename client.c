@@ -518,4 +518,3 @@ int main()
 
 // gcc -c client.c -o client.o `sdl2-config --cflags --libs` -lm
 // gcc -c net/Serialization.c -o serialization.o
-
