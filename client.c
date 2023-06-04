@@ -33,7 +33,7 @@ typedef struct
     bool alive;
 } Food;
 
-
+Player players[MAX_PLAYERS];
 
 // Function prototypes
 int insertPlayer(Player players[], const char *name);
@@ -55,7 +55,7 @@ void FollowPlayer(Player myPlayer, float *cameraX, float *cameraY, float *scale)
 void updateGameFromServer(Player* players, int numPlayers);
 void sendClientMessageToServer(ClientMessage* clientMessage, int sock);
 void receiveServerMessageFromServer(ServerMessage* serverMessage, int socket);
-void processServerMessage(ServerMessage message, Player players[]);
+void processServerMessage(ServerMessage* message);
 
 
 
@@ -109,45 +109,53 @@ ClientMessage* makeClientMessage(Player player)
 
 
 
-ServerMessage ReceiveMessage(int socket)
+void ReceiveMessage(int socket)
 {
-    
-    char serializedData[sizeof(ClientMessage)];
-    int bytesRead = recv(socket, serializedData, sizeof(ClientMessage), 0);
+   printf("Receiving message\n");
+
+    // Create a buffer to receive the serialized message
+    char buffer[sizeof(SerializableServerMessage)];
+
+    // Receive the serialized message
+    ssize_t bytesRead = recv(socket, buffer, sizeof(buffer), 0);
     if (bytesRead == -1) {
-        //perror("Error receiving message from client socket number " + socket);
+        perror("Error receiving message");
+        return;
     }
 
-    if (bytesRead == 0) {
-        printf("Client socket number %d disconnected\n", socket);
-        close(socket);
-        //clientSockets[socket] = 0;
-    }
-    
-    SerializableServerMessage* serializedServerMessage = new_SerializableServerMessage();
-    int32_t serializedServerSize = serializedServerMessage->base.size((Serializable*)serializedServerMessage);
-    char* serializedServerData = (char*)malloc(serializedServerSize);
-    serializedServerData = serializedServerMessage->base.data((Serializable*)serializedServerMessage);
-    serializedServerMessage->base.from_bin((Serializable*)serializedServerMessage, serializedServerData);
-    return serializedServerMessage->message;
+    // Create a SerializableClientMessage object
+    SerializableServerMessage* deserializedServerData = new_SerializableServerMessage();
 
+    // Deserialize the received data
+    deserializedServerData->base.from_bin((Serializable*)deserializedServerData, buffer);
 
+    printf("Deserialized message\n");
+
+    // Apply the message
+    processServerMessage(&deserializedServerData->message);
+    printf("Applied message\n");
+
+    // Free the dynamically allocated memory
+    free_SerializableServerMessage(deserializedServerData);
+
+    printf("Freed memory\n");
 }
 
-void processServerMessage(ServerMessage message, Player players[])
+void processServerMessage(ServerMessage* message)
 {
+    printf("Processing server message\n");
     for(int i = 0; i < MAX_PLAYERS; i++)
     {
-        players[i].x = message.players[i].x;
-        players[i].y = message.players[i].y;
-        players[i].alive = message.players[i].alive;
-        players[i].radius = message.players[i].radius;
-        players[i].playerIndex = message.players[i].playerIndex;
+        players[i].x = message->players[i].x;
+        players[i].y = message->players[i].y;
+        players[i].alive = message->players[i].alive;
+        players[i].radius = message->players[i].radius;
+        players[i].playerIndex = message->players[i].playerIndex;
     }
   
 }
 
-Player initializePlayer(ServerMessage message)
+Player initializePlayer()
 {
     int i = 0;
     bool found = false;
@@ -155,16 +163,16 @@ Player initializePlayer(ServerMessage message)
     myPlayer.playerIndex = MAX_PLAYERS;
     while (!found && i < MAX_PLAYERS){
 
-        if (message.players[i].playerIndex == -2){
-            myPlayer.playerIndex = message.players[i-1].playerIndex;
+        if (players[i].playerIndex == -2){
+            myPlayer.playerIndex = players[i-1].playerIndex;
             found = true;
         }
         i++;
     }
     myPlayer.alive = true;
-    myPlayer.radius = message.players[myPlayer.playerIndex].radius;
-    myPlayer.x = message.players[myPlayer.playerIndex].x;
-    myPlayer.y = message.players[myPlayer.playerIndex].y;
+    myPlayer.radius = players[myPlayer.playerIndex].radius;
+    myPlayer.x = players[myPlayer.playerIndex].x;
+    myPlayer.y = players[myPlayer.playerIndex].y;
     return myPlayer;
 }
 
@@ -461,7 +469,6 @@ int main()
 
     bool running = true;
 
-    Player players[MAX_PLAYERS];
     Player myPlayer;
     myPlayer.alive = true;
     myPlayer.radius = INI_RADIUS;
@@ -475,7 +482,9 @@ int main()
     sendClientMessageToServer(myClientMessage, sockfd);
     printf("Sent message to server\n");
     // se le asigna el personaje creado
-    myPlayer = initializePlayer(ReceiveMessage(sockfd));
+    ReceiveMessage(sockfd);
+
+    myPlayer = initializePlayer();
 
     // inicializa la comida
     Food food[MAX_FOOD];
@@ -501,14 +510,17 @@ int main()
             else if (event.type == SDL_MOUSEMOTION)
             {
                 MovePlayer(&myPlayer, event.motion.x, event.motion.y);
+                printf("x: %f, y: %f\n", myPlayer.x, myPlayer.y);
             }
         }
-
+        
         // Actualizar el juego con los datos recibidos del servidor
-        processServerMessage(ReceiveMessage(sockfd), players);
+        ReceiveMessage(sockfd);
 
         // Actualizar posición del jugador local en el servidor
-        sendClientMessageToServer(makeClientMessage(myPlayer), sockfd);
+        ClientMessage *myClientMessage = makeClientMessage(myPlayer);
+
+        sendClientMessageToServer(myClientMessage, sockfd);
         //send(sockfd, &clientMessage, sizeof(clientMessage), 0);
 
         // Dibujar el juego
@@ -529,6 +541,9 @@ int main()
         Ranking(renderer, players, MAX_PLAYERS, font);
 
         SDL_RenderPresent(renderer);
+
+        // tickrate
+        SDL_Delay(1000 / 60);
     }
 
     // Liberar recursos

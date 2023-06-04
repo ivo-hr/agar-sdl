@@ -121,60 +121,57 @@ int AcceptConnection(int serverSocket) {
 }
 
 void SendMessage(int socket, ServerMessage* message) {
+    printf("Sending message\n");
     SerializableServerMessage *serializedMessage = new_SerializableServerMessage();
     serializedMessage->message = *message;
     serializedMessage->base.to_bin((Serializable*)serializedMessage);
+    printf("Serialized message\n");
 
-    if (send(socket, &serializedMessage, sizeof(serializedMessage), 0) == -1) {
+    char* serializedServerData = serializedMessage->base.data((Serializable*)serializedMessage);
+    int32_t serializedServerSize = serializedMessage->base.size((Serializable*)serializedMessage);
+    printf("Server message data saved\n");
+
+    if (send(socket, serializedServerData, serializedServerSize, 0) == -1) {
         perror("Error sending message");
     }
 
     free_SerializableServerMessage(serializedMessage);
+    printf("Freed memory\n");
 }
 
-void ReceiveMessage(int socket) {
 
+void ReceiveMessage(int socket) {
     printf("Receiving message\n");
-    SerializableClientMessage *serializedMessage = new_SerializableClientMessage();
-    ssize_t bytesRead = recv(socket, serializedMessage, sizeof(SerializableClientMessage), 0);
+
+    // Create a buffer to receive the serialized message
+    char buffer[sizeof(SerializableClientMessage)];
+
+    // Receive the serialized message
+    ssize_t bytesRead = recv(socket, buffer, sizeof(buffer), 0);
     if (bytesRead == -1) {
         perror("Error receiving message");
         return;
     }
 
-    int32_t serializedClientSize = serializedMessage->base.size((Serializable*)serializedMessage);
-    char* serializedClientData = (char*)malloc(serializedClientSize);
-    serializedClientData = serializedMessage->base.data((Serializable*)serializedMessage);
-    printf("Serialized Data: ");
-    for (int i = 0; i < serializedClientSize; i++) {
-        printf("%c", serializedClientData[i]);
-    }
-    printf("\n");
-    // Allocate memory for deserialized data
-    SerializableClientMessage* deserializedClientData = (SerializableClientMessage*)malloc(serializedClientSize);
-    printf("Allocated memory for deserialized message data\n");
+    // Create a SerializableClientMessage object
+    SerializableClientMessage* deserializedClientData = new_SerializableClientMessage();
 
+    // Deserialize the received data
+    deserializedClientData->base.from_bin((Serializable*)deserializedClientData, buffer);
 
-    //SerializableClientMessage* deserializedSerializedMessage = new_SerializableClientMessage();
-    printf("adasdasd\n");
-    serializedMessage->base.from_bin((Serializable*)serializedMessage, serializedClientData);
-    printf("Created deserialized message object\n");
-
-
-    
-
+    printf("Deserialized message\n");
 
     // Apply the message
-    ApplyMessage(&serializedMessage->message);
+    ApplyMessage(&deserializedClientData->message);
     printf("Applied message\n");
 
     // Free the dynamically allocated memory
-    free(deserializedClientData);
-    //free_SerializableClientMessage(deserializedSerializedMessage);
-    free_SerializableClientMessage(serializedMessage);
-    printf("Freed memory\n");
+    free_SerializableClientMessage(deserializedClientData);
 
+    printf("Freed memory\n");
 }
+
+
 
 
 void ApplyMessage(ClientMessage* message) {
@@ -197,6 +194,7 @@ void ApplyMessage(ClientMessage* message) {
 }
 
 void HandleClients(int serverSocket, int clientSockets[], int maxClients) {
+    printf("Handling clients...\n");
     fd_set readfds;
     int maxSocket = serverSocket;
 
@@ -244,10 +242,10 @@ void HandleClients(int serverSocket, int clientSockets[], int maxClients) {
                 Player* player = &clientPlayerParams[i];
                 if (player->alive) {
                     ServerMessage* message = (ServerMessage*)malloc(sizeof(ServerMessage));
-                    printf("Sending message to client %d\n", i);
+                    printf("Preparing to send message to client %d\n", i);
                     message->messageId = 100;
                     memcpy(message->players, serverPlayers, sizeof(serverPlayers));
-
+                    printf("Created message\n");
                     SendMessage(socket, message);
                 }
             }
@@ -285,13 +283,26 @@ void checkPlayerMovement(Player* player, float x, float y) {
 }
 
 void* GameLogic(void* arg) {
+    printf("Game logic started!\n");
     while (true) {
         usleep(100000); // sleep for 0.1 seconds
 
         for (int i = 0; i < MAX_PLAYERS; i++) {
             Player* player = &serverPlayers[i];
-            if (player->alive) {
+            if (player->playerIndex > -1) {
+
+                
+
                 checkPlayerMovement(player, player->x + rand() % 21 - 10, player->y + rand() % 21 - 10);
+                PlayerCollision(player);
+
+
+                ServerMessage* message = (ServerMessage*)malloc(sizeof(ServerMessage));
+                    printf("Preparing to send game state to client %d\n", i);
+                    message->messageId = 100;
+                    memcpy(message->players, serverPlayers, sizeof(serverPlayers));
+                    printf("Created game state message\n");
+                    SendMessage(clientSockets[i], message);
             }
         }
     }
@@ -327,10 +338,15 @@ int main() {
 
     serverSocket = CreateServerSocket(port);
     printf("Server started on port %d\n", port);
-
+    
     memset(clientSockets, 0, sizeof(clientSockets));
     printf("Initializing client sockets...\n");
+
+    pthread_t gameLogicThread;
+    pthread_create(&gameLogicThread, NULL, GameLogic, NULL);
+    printf("Created game logic thread...\n");
     HandleClients(serverSocket, clientSockets, MAX_PLAYERS);
 
+    pthread_join(gameLogicThread, NULL);
     return 0;
 }
