@@ -142,27 +142,38 @@ void ReceiveMessage(int socket) {
         return;
     }
 
-    char* serializedClientData = serializedMessage->base.data((Serializable*)serializedMessage);
     int32_t serializedClientSize = serializedMessage->base.size((Serializable*)serializedMessage);
-
+    char* serializedClientData = (char*)malloc(serializedClientSize);
+    serializedClientData = serializedMessage->base.data((Serializable*)serializedMessage);
+    printf("Serialized Data: ");
+    for (int i = 0; i < serializedClientSize; i++) {
+        printf("%c", serializedClientData[i]);
+    }
+    printf("\n");
     // Allocate memory for deserialized data
     SerializableClientMessage* deserializedClientData = (SerializableClientMessage*)malloc(serializedClientSize);
     printf("Allocated memory for deserialized message data\n");
 
 
-    SerializableClientMessage* deserializedSerializedMessage = new_SerializableClientMessage();
-    deserializedSerializedMessage->base.from_bin((Serializable*)deserializedSerializedMessage, serializedClientData);
+    //SerializableClientMessage* deserializedSerializedMessage = new_SerializableClientMessage();
+    printf("adasdasd\n");
+    serializedMessage->base.from_bin((Serializable*)serializedMessage, serializedClientData);
     printf("Created deserialized message object\n");
 
+
+    
+
+
     // Apply the message
-    ApplyMessage(&deserializedSerializedMessage->message);
+    ApplyMessage(&serializedMessage->message);
     printf("Applied message\n");
 
     // Free the dynamically allocated memory
     free(deserializedClientData);
-    free_SerializableClientMessage(deserializedSerializedMessage);
+    //free_SerializableClientMessage(deserializedSerializedMessage);
     free_SerializableClientMessage(serializedMessage);
     printf("Freed memory\n");
+
 }
 
 

@@ -84,10 +84,6 @@ void sendClientMessageToServer(ClientMessage* clientMessage, int sock)
 
 ClientMessage* makeClientMessage(Player player)
 {
-<<<<<<< HEAD
-    ClientMessage* clientMessage = (ClientMessage*)malloc(sizeof(ClientMessage));
-    
-=======
     printf("Creating client message\n");
 
     // Allocate memory for the ClientMessage struct
@@ -100,7 +96,6 @@ ClientMessage* makeClientMessage(Player player)
     }
 
     // Assign values to the members of the ClientMessage struct
->>>>>>> origin/main
     clientMessage->player.x = player.x;
     clientMessage->player.y = player.y;
     clientMessage->player.radius = player.radius;
