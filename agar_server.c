@@ -72,9 +72,14 @@ void PlayerCollision(Player* player) {
                 if (serverPlayers[i].radius < player->radius) {
                     serverPlayers[i].alive = false;
                 }
+                else if (serverPlayers[i].radius > player->radius) {
+                    serverPlayers[i].radius += player->radius/2;
+                }
             }
+            printf("Player %d collided\n", player->playerIndex);
         }
     }
+
 }
 
 int CreateServerSocket(int port) {
@@ -123,9 +128,13 @@ void SendMessage(int socket, ServerMessage* message) {
     if (send(socket, &serializedMessage, sizeof(serializedMessage), 0) == -1) {
         perror("Error sending message");
     }
+
+    free_SerializableServerMessage(serializedMessage);
 }
 
 void ReceiveMessage(int socket) {
+
+    printf("Receiving message\n");
     SerializableClientMessage *serializedMessage = new_SerializableClientMessage();
     ssize_t bytesRead = recv(socket, serializedMessage, sizeof(SerializableClientMessage), 0);
     if (bytesRead == -1) {
@@ -137,24 +146,28 @@ void ReceiveMessage(int socket) {
     int32_t serializedClientSize = serializedMessage->base.size((Serializable*)serializedMessage);
 
     // Allocate memory for deserialized data
-    void* deserializedClientData = malloc(serializedClientSize);
+    SerializableClientMessage* deserializedClientData = (SerializableClientMessage*)malloc(serializedClientSize);
+    printf("Allocated memory for deserialized message data\n");
 
-    // Copy serialized data to the allocated memory
-    memcpy(deserializedClientData, serializedClientData, serializedClientSize);
 
-    // Create a new deserialized message object
     SerializableClientMessage* deserializedSerializedMessage = new_SerializableClientMessage();
-    deserializedSerializedMessage->base.from_bin((Serializable*)deserializedSerializedMessage, deserializedClientData);
+    deserializedSerializedMessage->base.from_bin((Serializable*)deserializedSerializedMessage, serializedClientData);
+    printf("Created deserialized message object\n");
 
     // Apply the message
     ApplyMessage(&deserializedSerializedMessage->message);
+    printf("Applied message\n");
 
     // Free the dynamically allocated memory
     free(deserializedClientData);
+    free_SerializableClientMessage(deserializedSerializedMessage);
+    free_SerializableClientMessage(serializedMessage);
+    printf("Freed memory\n");
 }
 
 
 void ApplyMessage(ClientMessage* message) {
+    printf("Applying client message\n");
     for (int i = 0; i < MAX_PLAYERS; i++) {
         if (clientPlayerParams[i].playerIndex == -2) {
             clientPlayerParams[i].playerIndex = message->player.playerIndex;
@@ -169,6 +182,7 @@ void ApplyMessage(ClientMessage* message) {
             break;
         }
     }
+    printf("Applied client message\n");
 }
 
 void HandleClients(int serverSocket, int clientSockets[], int maxClients) {
@@ -218,11 +232,12 @@ void HandleClients(int serverSocket, int clientSockets[], int maxClients) {
             if (socket > 0) {
                 Player* player = &clientPlayerParams[i];
                 if (player->alive) {
-                    ServerMessage message;
-                    message.messageId = 100;
-                    memcpy(&message.players, serverPlayers, sizeof(serverPlayers));
+                    ServerMessage* message = (ServerMessage*)malloc(sizeof(ServerMessage));
+                    printf("Sending message to client %d\n", i);
+                    message->messageId = 100;
+                    memcpy(message->players, serverPlayers, sizeof(serverPlayers));
 
-                    SendMessage(socket, &message);
+                    SendMessage(socket, message);
                 }
             }
         }
@@ -230,6 +245,7 @@ void HandleClients(int serverSocket, int clientSockets[], int maxClients) {
 }
 
 void checkPlayerMovement(Player* player, float x, float y) {
+    printf("Checking player movement\n");
     float dx = x - player->x;
     float dy = y - player->y;
 
@@ -253,7 +269,7 @@ void checkPlayerMovement(Player* player, float x, float y) {
     } else if (player->y > WORLD_SIZE) {
         player->y = WORLD_SIZE;
     }
-
+    printf("Checked player movement, moving onto collision...\n");
     PlayerCollision(player);
 }
 
@@ -290,16 +306,19 @@ int main() {
         }
     }
 
+    printf("\n\n Booting up server...\n");
+
     srand(time(NULL));
 
     initServerPlayers();
+    printf("Initializing player array...\n");
+
 
     serverSocket = CreateServerSocket(port);
-
     printf("Server started on port %d\n", port);
 
     memset(clientSockets, 0, sizeof(clientSockets));
-
+    printf("Initializing client sockets...\n");
     HandleClients(serverSocket, clientSockets, MAX_PLAYERS);
 
     return 0;
