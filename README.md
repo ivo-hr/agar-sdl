@@ -1,5 +1,5 @@
 # agar-sdl
-An agar.io clone made in SDL to be run on linux, on a TCP client-server network structure.
+An WIP agar.io clone made in SDL to be run on linux, on a TCP client-server network structure.
 
 ## Installation guide (test)
 1. Clone the repo
