@@ -36,7 +36,6 @@ typedef struct
 
 
 // Function prototypes
-void initializePlayers(Player players[]);
 int insertPlayer(Player players[], const char *name);
 int reSpawnPlayer(Player players[], Player myPlayer);
 void MovePlayer(Player* myPlayer, int mouseX, int mouseY);
@@ -54,13 +53,14 @@ bool CollisionFood(Food food[], Player myPlayer, float scale);
 void FollowPlayer(Player myPlayer, float *cameraX, float *cameraY, float *scale);
 
 void updateGameFromServer(Player* players, int numPlayers);
-void sendClientMessageToServer(ClientMessage* clientMessage);
-void receiveServerMessageFromServer(ServerMessage* serverMessage);
+void sendClientMessageToServer(ClientMessage* clientMessage, int sock);
+void receiveServerMessageFromServer(ServerMessage* serverMessage, int socket);
+void processServerMessage(ServerMessage message, Player players[]);
 
 
 
 // Función para serializar el mensaje del cliente y enviarlo al servidor
-void sendClientMessageToServer(ClientMessage* clientMessage)
+void sendClientMessageToServer(ClientMessage* clientMessage, int sock)
 {
     // Creamos una instancia de SerializableClientMessage y lo llenamos con el mensaje del cliente
     SerializableClientMessage* serializableClientMessage = new_SerializableClientMessage();
@@ -69,8 +69,12 @@ void sendClientMessageToServer(ClientMessage* clientMessage)
     // Serializamos el mensaje del cliente
     serializableClientMessage->base.to_bin((Serializable*)serializableClientMessage);
 
+    // guardamos los datos del mensaje serializado
+    char* serializedClienttData = serializableClientMessage->base.data((Serializable*)serializableClientMessage);
+    int32_t serializedClientSize = serializableClientMessage->base.size((Serializable*)serializableClientMessage);
+    serializedClienttData = malloc(serializedClientSize);
     // Enviamos el mensaje serializado al servidor
-    sendToServer((Serializable*)serializableClientMessage);
+    send( sock, serializedClienttData, serializedClientSize, 0);
 
     // Liberamos la memoria del mensaje serializado
     free_SerializableClientMessage(serializableClientMessage);
@@ -114,18 +118,15 @@ ServerMessage ReceiveMessage(int socket)
 
 }
 
-
-
-
-void processServerMessage(ServerMessage message, Player *players[])
+void processServerMessage(ServerMessage message, Player players[])
 {
     for(int i = 0; i < MAX_PLAYERS; i++)
     {
-        players[i]->x = message.players[i].x;
-        players[i]->y = message.players[i].y;
-        players[i]->alive = message.players[i].alive;
-        players[i]->radius = message.players[i].radius;
-        players[i]->playerIndex = message.players[i].playerIndex;
+        players[i].x = message.players[i].x;
+        players[i].y = message.players[i].y;
+        players[i].alive = message.players[i].alive;
+        players[i].radius = message.players[i].radius;
+        players[i].playerIndex = message.players[i].playerIndex;
     }
   
 }
@@ -261,7 +262,7 @@ void Ranking(SDL_Renderer *renderer, Player players[], int numPlayers, TTF_Font 
         if (players[i].alive)
         {
             char text[30];
-            sprintf(text, "%s (%.0f)", players[i].radius);
+            sprintf(text, "%f", players[i].radius);
 
             DrawText(renderer, text, 10, 10 + i * 20, font, 255, 255, 255);
         }
@@ -447,7 +448,7 @@ int main()
 
     // se le manda se;al al servidor para que cree un personaje
     myPlayer.playerIndex = -1;
-    sendClientMessageToServer(makeClientMessage(myPlayer));
+    sendClientMessageToServer(makeClientMessage(myPlayer), sockfd);
     // se le asigna el personaje creado
     myPlayer = initializePlayer(ReceiveMessage(sockfd));
 
@@ -482,7 +483,7 @@ int main()
         processServerMessage(ReceiveMessage(sockfd), players);
 
         // Actualizar posición del jugador local en el servidor
-        sendClientMessageToServer(makeClientMessage(myPlayer));
+        sendClientMessageToServer(makeClientMessage(myPlayer), sockfd);
             //send(sockfd, &clientMessage, sizeof(clientMessage), 0);
 
         // Dibujar el juego
@@ -514,4 +515,7 @@ int main()
 
     return 0;
 }
+
+// gcc -c client.c -o client.o `sdl2-config --cflags --libs` -lm
+// gcc -c net/Serialization.c -o serialization.o
 
