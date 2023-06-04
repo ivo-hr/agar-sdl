@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
+#include <pthread.h>
 //#include <sys/types.h>
 
 
@@ -19,16 +20,19 @@
 
 
 Player serverPlayers[MAX_PLAYERS];
+Player clientPlayerParams[MAX_PLAYERS];
 int serverSocket;
 int clientSockets[MAX_PLAYERS];
 
 int currentPlayers = 0;
 
+pthread_t gameLogicThread;
+
 
 void initServerPlayers();
 
 void checkPlayerMovement(Player* player, float x, float y);
-void playerCollision(Player* player);
+void PlayerCollision(Player* player);
 
 int CreateServerSocket(int port);
 int AcceptConnection(int serverSocket);
@@ -37,6 +41,7 @@ void ReceiveMessage(int socket);
 void ApplyMessage(ClientMessage* message);
 
 void HandleClients(int serverSocket, int clientSockets[], int maxClients);
+void* GameLogic(void *arg);
 
 
 
@@ -48,6 +53,12 @@ void initServerPlayers() {
         serverPlayers[i].y = rand() % WORLD_SIZE;
         serverPlayers[i].radius = INITIAL_RADIUS;
         serverPlayers[i].alive = false;
+
+        clientPlayerParams[i].playerIndex = -2;
+        clientPlayerParams[i].x = rand() % WORLD_SIZE;
+        clientPlayerParams[i].y = rand() % WORLD_SIZE;
+        clientPlayerParams[i].radius = INITIAL_RADIUS;
+        clientPlayerParams[i].alive = false;
     }
 }
 
@@ -114,7 +125,6 @@ void SendMessage(int socket, ServerMessage* message) {
     char* serializedServerData = serializedServerMessage->base.data((Serializable*)serializedServerMessage);
     int32_t serializedServerSize = serializedServerMessage->base.size((Serializable*)serializedServerMessage);
 
-    malloc(serializedServerSize);
     // Send the serialized server message data to the client
     send(socket, serializedServerData, serializedServerSize, 0);
 
@@ -125,7 +135,7 @@ void SendMessage(int socket, ServerMessage* message) {
 
 void ReceiveMessage(int socket) {
     // Receive the serialized message data from the client
-    char serializedData[sizeof(ClientMessage)];
+    char* serializedData = malloc(sizeof(ClientMessage));
     int bytesRead = recv(socket, serializedData, sizeof(ClientMessage), 0);
     if (bytesRead == -1) {
         perror("Error receiving message from client socket number " + socket);
@@ -142,10 +152,8 @@ void ReceiveMessage(int socket) {
     char* serializedClientData = serializedClientMessage->base.data((Serializable*)serializedData);
     int32_t serializedClientSize = serializedClientMessage->base.size((Serializable*)serializedClientMessage);
 
-    //allocate memory for the deserialized message
-    malloc(serializedClientSize);
 
-    SerializableClientMessage* deserializedSerializedClientMessage = new_SerializableClientMessage();
+    SerializableClientMessage* deserializedSerializedClientMessage = malloc(sizeof(SerializableClientMessage));
     deserializedSerializedClientMessage->base.from_bin((Serializable*)deserializedSerializedClientMessage, serializedClientData);
 
     printf("Message received from client socket number %d\n", socket);
@@ -176,12 +184,14 @@ void HandleClients(int serverSocket, int clientSockets[], int maxClients) {
     int maxSocket = serverSocket;
     int activity;
 
+    pthread_create(&gameLogicThread, NULL, GameLogic, NULL);
+
     while (true) {
         FD_ZERO(&readfds);
         FD_SET(serverSocket, &readfds);
 
         // Accept client connection
-        int clientSocket = acceptConnection(serverSocket);
+        int clientSocket = AcceptConnection(serverSocket);
 
         if (currentPlayers >= MAX_PLAYERS) {
             // Reject the connection if the maximum number of players is reached
@@ -198,9 +208,6 @@ void HandleClients(int serverSocket, int clientSockets[], int maxClients) {
                 break;
             }
         }
-
-        // Create a new process to handle the client
-        int pid = fork();
 
         //Send the player index to the client
         ServerMessage message;
@@ -237,14 +244,38 @@ void HandleClients(int serverSocket, int clientSockets[], int maxClients) {
 
         for (int i = 0; i < maxClients; i++) {
             int socket = clientSockets[i];
-            if (FD_ISSET(socket, &readfds)) {
+            if (socket != 0 && FD_ISSET(socket, &readfds)) {
                 ReceiveMessage(socket);
                 ServerMessage serverMessage;
                 serverMessage.messageId = 1;
-                memcpy(serverMessage.players, serverPlayers, sizeof(serverPlayers));
+                memcpy(serverMessage.players, &serverPlayers, sizeof(serverPlayers));
                 SendMessage(socket, &serverMessage);
             }
         }
     }
+
+    pthread_join(gameLogicThread, NULL);
+}
+
+void* GameLogic(void* arg) {
+    while (true) {
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+            if (serverPlayers[i].playerIndex >= 0) {
+                PlayerCollision(&serverPlayers[i]);
+                checkPlayerMovement(&serverPlayers[i], serverPlayers[i].x, serverPlayers[i].y);
+                
+                if (clientSockets[i] != 0) {
+                    ServerMessage message;
+                    message.messageId = 2;
+                    memcpy(message.players, &serverPlayers, sizeof(serverPlayers));
+                    SendMessage(clientSockets[i], &message);
+                }
+            }
+        }
+
+        usleep(1000);
+    }
+
+    return NULL;
 }
 
