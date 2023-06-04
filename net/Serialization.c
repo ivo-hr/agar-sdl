@@ -176,7 +176,7 @@ void free_SerializableClientMessage(SerializableClientMessage* serializable)
 }
 
 
-int main()
+/*int main()
 {
     // Create a sample server message
     ServerMessage serverMessage;
@@ -266,4 +266,4 @@ free_SerializableClientMessage(deserializedSerializedClientMessage);
 
 
     return 0;
-}
+}*/
