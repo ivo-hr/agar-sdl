@@ -82,7 +82,8 @@ void sendClientMessageToServer(ClientMessage* clientMessage, int sock)
 
 ClientMessage* makeClientMessage(Player player)
 {
-    ClientMessage* clientMessage;
+    ClientMessage* clientMessage = (ClientMessage*)malloc(sizeof(ClientMessage));
+    
     clientMessage->player.x = player.x;
     clientMessage->player.y = player.y;
     clientMessage->player.radius = player.radius;
