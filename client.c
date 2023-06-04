@@ -62,17 +62,19 @@ void processServerMessage(ServerMessage message, Player players[]);
 // Función para serializar el mensaje del cliente y enviarlo al servidor
 void sendClientMessageToServer(ClientMessage* clientMessage, int sock)
 {
+    printf("Sending client message to server\n");
     // Creamos una instancia de SerializableClientMessage y lo llenamos con el mensaje del cliente
     SerializableClientMessage* serializableClientMessage = new_SerializableClientMessage();
     serializableClientMessage->message = *clientMessage;
-
+    printf("Client message created\n");
     // Serializamos el mensaje del cliente
     serializableClientMessage->base.to_bin((Serializable*)serializableClientMessage);
-
+    printf("Client message serialized\n");
     // guardamos los datos del mensaje serializado
     char* serializedClienttData = serializableClientMessage->base.data((Serializable*)serializableClientMessage);
     int32_t serializedClientSize = serializableClientMessage->base.size((Serializable*)serializableClientMessage);
     serializedClienttData = malloc(serializedClientSize);
+    printf("Client message data saved\n");
     // Enviamos el mensaje serializado al servidor
     send( sock, serializedClienttData, serializedClientSize, 0);
 
@@ -82,16 +84,34 @@ void sendClientMessageToServer(ClientMessage* clientMessage, int sock)
 
 ClientMessage* makeClientMessage(Player player)
 {
+<<<<<<< HEAD
     ClientMessage* clientMessage = (ClientMessage*)malloc(sizeof(ClientMessage));
     
+=======
+    printf("Creating client message\n");
+
+    // Allocate memory for the ClientMessage struct
+    ClientMessage* clientMessage = (ClientMessage*)malloc(sizeof(ClientMessage));
+    
+    // Check if memory allocation was successful
+    if (clientMessage == NULL) {
+        printf("Failed to allocate memory for ClientMessage\n");
+        return NULL;
+    }
+
+    // Assign values to the members of the ClientMessage struct
+>>>>>>> origin/main
     clientMessage->player.x = player.x;
     clientMessage->player.y = player.y;
     clientMessage->player.radius = player.radius;
     clientMessage->player.playerIndex = player.playerIndex;
     clientMessage->timestamp = SDL_GetTicks();
+
+    printf("Client message created\n");
+
     return clientMessage;
-    
 }
+
 
 
 ServerMessage ReceiveMessage(int socket)
@@ -411,7 +431,7 @@ int main()
         perror("Error al crear el socket");
         return 1;
     }
-
+    printf("Socket creado exitosamente\n");
     // Configurar la dirección del servidor
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
@@ -420,12 +440,14 @@ int main()
         perror("Error al configurar la dirección del servidor");
         return 1;
     }
+    printf("Dirección del servidor configurada exitosamente\n");
 
     // Conectar con el servidor
     if (connect(sockfd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
         perror("Error al conectar con el servidor");
         return 1;
     }
+    printf("Conexión con el servidor establecida exitosamente\n");
 
 
     // Inicialización de SDL, TTF y variables
@@ -435,7 +457,7 @@ int main()
     SDL_Window *window = SDL_CreateWindow("Game", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    TTF_Font *font = TTF_OpenFont("../Assets/arial.ttf", 16);
+    TTF_Font *font = TTF_OpenFont("Assets/arial.ttf", 16);
     if (!font)
     {
         printf("Error al cargar la fuente\n");
@@ -446,10 +468,17 @@ int main()
 
     Player players[MAX_PLAYERS];
     Player myPlayer;
-
+    myPlayer.alive = true;
+    myPlayer.radius = INI_RADIUS;
+    myPlayer.x = 0;
+    myPlayer.y = 0;
     // se le manda se;al al servidor para que cree un personaje
     myPlayer.playerIndex = -1;
-    sendClientMessageToServer(makeClientMessage(myPlayer), sockfd);
+
+    ClientMessage *myClientMessage = makeClientMessage(myPlayer);
+
+    sendClientMessageToServer(myClientMessage, sockfd);
+    printf("Sent message to server\n");
     // se le asigna el personaje creado
     myPlayer = initializePlayer(ReceiveMessage(sockfd));
 
