@@ -164,7 +164,8 @@ Player initializePlayer()
     while (!found && i < MAX_PLAYERS){
 
         if (players[i].playerIndex == -2){
-            myPlayer.playerIndex = players[i-1].playerIndex;
+            if (i > 0) myPlayer.playerIndex = players[i-1].playerIndex;
+            else myPlayer.playerIndex = players[i].playerIndex;
             found = true;
         }
         i++;
@@ -309,7 +310,7 @@ void DrawPlayer(SDL_Renderer *renderer, Player players[], int myPlayerNum, int c
 {
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
-        if (players[i].alive)
+        if (players[i].playerIndex < -1)
         {
             int x = (players[i].x - cameraX) * scale + WINDOW_WIDTH / 2;
             int y = (players[i].y - cameraY) * scale + WINDOW_HEIGHT / 2;
@@ -475,7 +476,7 @@ int main()
     myPlayer.x = 0;
     myPlayer.y = 0;
     // se le manda se;al al servidor para que cree un personaje
-    myPlayer.playerIndex = -1;
+    myPlayer.playerIndex = 13;
 
     ClientMessage *myClientMessage = makeClientMessage(myPlayer);
 
@@ -514,17 +515,22 @@ int main()
             }
         }
         
-        // Actualizar el juego con los datos recibidos del servidor
-        ReceiveMessage(sockfd);
 
         // Actualizar posición del jugador local en el servidor
         ClientMessage *myClientMessage = makeClientMessage(myPlayer);
 
+        printf("Sending message to server, my playerindex is %d\n" , myPlayer.playerIndex);
+
         sendClientMessageToServer(myClientMessage, sockfd);
         //send(sockfd, &clientMessage, sizeof(clientMessage), 0);
 
+        // Actualizar el juego con los datos recibidos del servidor
+        ReceiveMessage(sockfd);
+
+
+
         // Dibujar el juego
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
         SDL_RenderClear(renderer);
 
         // Actualizar cámara
