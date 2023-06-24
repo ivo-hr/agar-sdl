@@ -1,5 +1,8 @@
 #include "agar-server.h"
 
+
+//player
+
 void handleCollisions(Player* players) {
     for (int i = 0; i < MAX_PLAYERS; i++) {
         if (players[i].alive) {
@@ -12,6 +15,7 @@ void handleCollisions(Player* players) {
                     if ((disX <= radiusSum && disY <= radiusSum) || disX <= players[j].radius && disY <= players[i].radius) {
                         if (players[i].radius > players[j].radius && players[j].alive) {
                             players[j].alive = false;
+                            reSpawnPlayer(j);
                             players[i].radius += players[j].radius / 2;
                         }
                     }
@@ -20,6 +24,45 @@ void handleCollisions(Player* players) {
         }
     }
 }
+
+int reSpawnPlayer(int playerNum)
+{
+
+    players[playerNum].x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+    players[playerNum].y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+    players[playerNum].radius = INI_RADIUS;
+    players[playerNum].alive = true;
+
+    return i;
+}
+
+void MovePlayer(int playerNum, int mouseX, int mouseY)
+{
+    float dx = (float)mouseX - WINDOW_WIDTH / 2;
+    float dy = (float)mouseY - WINDOW_HEIGHT / 2;
+    float distance = sqrt(dx * dx + dy * dy);
+
+    if (distance > 0)
+    {
+        players[playerNum]->x += dx * LAG_FACTOR;
+        players[playerNum]->y += dy * LAG_FACTOR;
+    }
+}
+
+int insertPlayer()
+{
+    int i = 0;
+    while (players[i].alive)
+        i++;
+
+    players[i].x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+    players[i].y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+    players[i].radius = INI_RADIUS;
+    players[i].alive = true;
+    return i;
+}
+
+//server/client
 
 void handleClient(int clientSocket, Player* players) {
     SerializableClientMessage* clientMessage = new_SerializableClientMessage();
@@ -83,6 +126,7 @@ void handleClient(int clientSocket, Player* players) {
     free_SerializableClientMessage(clientMessage);
     close(clientSocket);
 }
+
 int createServerSocket(int port) {
     int serverSocket;
     struct sockaddr_in serverAddress;
@@ -132,60 +176,64 @@ int acceptClientConnection(int serverSocket) {
     return clientSocket;
 }
 
-int numConnectedPlayers = 0;
-
+//recibe el mensaje del jugador y lo procesa
 void handleClientRequests(int serverSocket, int clientSockets[], int maxClients) {
-    Player players[MAX_PLAYERS];
 
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-        strcpy(players[i].username, "");
-        players[i].x = 0.0;
-        players[i].y = 0.0;
-        players[i].radius = 0.0;
-        players[i].alive = false;
-        lastClientTicks[i] = 0;
-    }
+//si el mensaje es login, se crea un nuevo jugador.
 
-   while (1) {
-        // Accept client connection
-        int clientSocket = acceptClientConnection(serverSocket);
+//si el mensaje es logout se destruye el jugador y se corta la conexion
 
-        if (numConnectedPlayers >= MAX_PLAYERS) {
-            // Reject the connection if the maximum number of players is reached
-            printf("Max player limit reached. Rejecting new connection.\n");
-            close(clientSocket);
-            continue;
-        }
+//si el mensaje es input, actualiza la posicion del jugador
+//moveplayer
 
-        // Add client socket to the list
-        for (int i = 0; i < maxClients; i++) {
-            if (clientSockets[i] == 0) {
-                clientSockets[i] = clientSocket;
-                break;
-            }
-        }
+//     Player players[MAX_PLAYERS];
 
-        // Create a new process to handle the client
-        int pid = fork();
+//     for (int i = 0; i < MAX_PLAYERS; i++) {
+//         strcpy(players[i].username, "");
+//         players[i].x = 0.0;
+//         players[i].y = 0.0;
+//         players[i].radius = 0.0;
+//         players[i].alive = false;
+//         lastClientTicks[i] = 0;
+//     }
 
-        //Send the player index to the client
+//    while (1) {
+//         // Accept client connection
+//         int clientSocket = acceptClientConnection(serverSocket);
+
+//         if (numConnectedPlayers >= MAX_PLAYERS) {
+//             // Reject the connection if the maximum number of players is reached
+//             printf("Max player limit reached. Rejecting new connection.\n");
+//             close(clientSocket);
+//             continue;
+//         }
+
+//         // Add client socket to the list
+//         for (int i = 0; i < maxClients; i++) {
+//             if (clientSockets[i] == 0) {
+//                 clientSockets[i] = clientSocket;
+//                 break;
+//             }
+//         }
+
+//         // Create a new process to handle the client
+//         int pid = fork();
+
+//         //Send the player index to the client
         
 
+//         if (pid < 0) {
+//             perror("Error: Failed to create child process\n");
+//             exit(1);
+//         } else if (pid == 0) {
+//             // Child process handles the client
+//             handleClient(clientSocket, players);
+//             break;
+//         }
 
-
-        if (pid < 0) {
-            perror("Error: Failed to create child process\n");
-            exit(1);
-        } else if (pid == 0) {
-            // Child process handles the client
-            handleClient(clientSocket, players);
-            break;
-        }
-
-        numConnectedPlayers++; // Increment the number of connected players
-    }
+//         numConnectedPlayers++; // Increment the number of connected players
+    //}
 }
-
 
 long long getCurrentTimestamp() {
     time_t currentTime = time(NULL);
@@ -233,6 +281,62 @@ void checkTimeout(Player* players) {
     }
 }
 
+//food
+
+bool CollisionFood(Food food[], Player myPlayer)
+{
+    for (int i = 0; i < MAX_FOOD; i++)
+    {
+        if (food[i].alive)
+        {
+            float dx = food[i].x - myPlayer.x;
+            float dy = food[i].y - myPlayer.y;
+            float distance = sqrt(dx * dx + dy * dy);
+
+            if (distance < (myPlayer.radius) + FOOD_RADIUS)
+            {
+                food[i].alive = false;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+void insertFood(Food food[], int x, int y)
+{
+    int i = 0;
+    while (food[i].alive)
+        i++;
+
+    food[i].x = x;
+    food[i].y = y;
+    food[i].alive = true;
+}
+
+void generateFood(Food food[], int numFood)
+{
+    for (int i = 0; i < numFood; i++)
+    {
+        int x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+        int y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
+        insertFood(food, x, y);
+    }
+}
+
+void initializeFood(Food food[])
+{
+    for (int i = 0; i < MAX_FOOD; i++)
+    {
+        food[i].alive = false;
+    }
+}
+
+void removeFood(Food food[], int index)
+{
+    food[index].alive = false;
+}
 
 int main() {
     int port;

@@ -3,103 +3,6 @@
 
 
 
-Player initializePlayer()
-{
-    int i = 0;
-    bool found = false;
-    Player myPlayer;
-    myPlayer.playerIndex = MAX_PLAYERS;
-    while (!found && i < MAX_PLAYERS){
-
-        if (players[i].playerIndex == -2){
-            if (i > 0) myPlayer.playerIndex = players[i-1].playerIndex;
-            else myPlayer.playerIndex = players[i].playerIndex;
-            found = true;
-        }
-        i++;
-    }
-    myPlayer.alive = true;
-    myPlayer.radius = players[myPlayer.playerIndex].radius;
-    myPlayer.x = players[myPlayer.playerIndex].x;
-    myPlayer.y = players[myPlayer.playerIndex].y;
-    return myPlayer;
-}
-
-int insertPlayer(Player players[], const char *name)
-{
-    int i = 0;
-    while (players[i].alive)
-        i++;
-
-    players[i].x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
-    players[i].y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
-    players[i].radius = INI_RADIUS;
-    players[i].alive = true;
-    return i;
-}
-
-int reSpawnPlayer(Player players[], Player myPlayer)
-{
-    int i = 0;
-    while (players[i].alive)
-        i++;
-
-    players[i].x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
-    players[i].y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
-    players[i].radius = INI_RADIUS;
-    players[i].alive = true;
-
-    return i;
-}
-
-void MovePlayer(Player* myPlayer, int mouseX, int mouseY)
-{
-    float dx = (float)mouseX - WINDOW_WIDTH / 2;
-    float dy = (float)mouseY - WINDOW_HEIGHT / 2;
-    float distance = sqrt(dx * dx + dy * dy);
-
-    if (distance > 0)
-    {
-        myPlayer->x += dx * LAG_FACTOR;
-        myPlayer->y += dy * LAG_FACTOR;
-    }
-}
-
-// food methods
-void insertFood(Food food[], int x, int y)
-{
-    int i = 0;
-    while (food[i].alive)
-        i++;
-
-    food[i].x = x;
-    food[i].y = y;
-    food[i].alive = true;
-}
-
-void generateFood(Food food[], int numFood)
-{
-    for (int i = 0; i < numFood; i++)
-    {
-        int x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
-        int y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
-        insertFood(food, x, y);
-    }
-}
-
-void initializeFood(Food food[])
-{
-    for (int i = 0; i < MAX_FOOD; i++)
-    {
-        food[i].alive = false;
-    }
-}
-
-void removeFood(Food food[], int index)
-{
-    food[index].alive = false;
-}
-
 void DrawCircle(SDL_Renderer *renderer, int centerX, int centerY, int radius, Uint8 red, Uint8 green, Uint8 blue)
 {
     for (double angle = 0; angle < 360; angle += 0.1)
@@ -112,7 +15,7 @@ void DrawCircle(SDL_Renderer *renderer, int centerX, int centerY, int radius, Ui
     }
 }
 
-void DrawPlayer(SDL_Renderer *renderer, Player players[], int myPlayerNum, int cameraX, int cameraY, float scale, TTF_Font *font)
+void DrawPlayer(SDL_Renderer *renderer, int cameraX, int cameraY, float scale, TTF_Font *font)
 {
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
@@ -125,7 +28,7 @@ void DrawPlayer(SDL_Renderer *renderer, Player players[], int myPlayerNum, int c
             Uint8 red, green, blue;
 
             // Color based on player number
-            if (i == myPlayerNum)
+            if (i == MyPlayer)
             {
                 red = 0;
                 green = 255;
@@ -161,31 +64,10 @@ void drawFood(SDL_Renderer *renderer, Food food[], int cameraX, int cameraY, flo
     }
 }
 
-bool CollisionFood(Food food[], Player myPlayer, float scale)
+void FollowPlayer(float *cameraX, float *cameraY, float *scale)
 {
-    for (int i = 0; i < MAX_FOOD; i++)
-    {
-        if (food[i].alive)
-        {
-            float dx = food[i].x - myPlayer.x;
-            float dy = food[i].y - myPlayer.y;
-            float distance = sqrt(dx * dx + dy * dy);
-
-            if (distance < (myPlayer.radius * scale) + FOOD_RADIUS)
-            {
-                food[i].alive = false;
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-void FollowPlayer(Player myPlayer, float *cameraX, float *cameraY, float *scale)
-{
-    *cameraX = myPlayer.x - WINDOW_WIDTH / (2 * *scale);
-    *cameraY = myPlayer.y - WINDOW_HEIGHT / (2 * *scale);
+    *cameraX = players[MyPlayer].x - WINDOW_WIDTH / (2 * *scale);
+    *cameraY = players[MyPlayer].y - WINDOW_HEIGHT / (2 * *scale);
 
     float playerSize = INI_RADIUS * *scale;
     float minScale = WINDOW_WIDTH / (playerSize * 4);
@@ -267,6 +149,9 @@ void ReceiveMessage(int socket)
     printf("Deserialized message\n");
 
     // Apply the message
+    //si es un mensaje de confirm login;
+    //MyPlayer = playerNum index que envia el servidor
+    //si es un mensaje standard
     processServerMessage(&deserializedServerData->message);
     printf("Applied message\n");
 
