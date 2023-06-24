@@ -70,6 +70,88 @@ int LoginMessage::from_bin(char * src){
     return 0;
 }
 
+// ConfirmMessage --------------------------------------------------------------
+
+ConfirmMessage::ConfirmMessage() : Message(CONFIRM), index(0), size(0) {
+    MSG_SIZE = sizeof(size_t) + sizeof(int);
+}
+
+ConfirmMessage::ConfirmMessage(int ind) : Message(CONFIRM), index(ind), size(0) {
+    MSG_SIZE = sizeof(size_t) + sizeof(int);
+}
+
+void ConfirmMessage::to_bin(){
+    alloc_data(MAX_SIZE);
+    memset(_data, 0, MSG_SIZE);
+
+    char * tmp = _data;
+    memcpy(tmp, &type, sizeof(MessageType));
+    tmp += sizeof(MessageType);
+
+    memcpy(tmp, &size, sizeof(size_t));
+    tmp += sizeof(size_t);
+
+    memcpy(tmp, &index, sizeof(int));
+}
+
+int ConfirmMessage::from_bin(char * src){
+    alloc_data(MAX_SIZE);
+    char * tmp = src;
+    memcpy(static_cast<void*>(_data), tmp, MAX_SIZE);
+    memcpy(&type, tmp, sizeof(MessageType));
+    tmp += sizeof(MessageType);
+
+    memcpy(&size, tmp, sizeof(size_t));
+    tmp += sizeof(size_t);
+
+    memcpy(&index, tmp, sizeof(int));
+
+    return 0;
+}
+
+// LogoutMessage ---------------------------------------------------------------
+
+LogoutMessage::LogoutMessage() : Message(LOGOUT), size(0) {
+    MSG_SIZE = sizeof(size_t);
+}
+
+LogoutMessage::LogoutMessage(std::string nam) : Message(LOGOUT), name(nam), size(strlen(name.c_str())) {
+    MSG_SIZE = strlen(name.c_str()) + sizeof(size_t);
+}
+
+void LogoutMessage::to_bin(){
+    alloc_data(MAX_SIZE);
+    memset(_data, 0, MSG_SIZE);
+
+    char * tmp = _data;
+    memcpy(tmp, &type, sizeof(MessageType));
+    tmp += sizeof(MessageType);
+
+    memcpy(tmp, &size, sizeof(size_t));
+    tmp += sizeof(size_t);
+
+    const char * name_c = name.c_str();
+    memcpy(tmp, name_c, size);
+}
+
+int LogoutMessage::from_bin(char * src){
+    alloc_data(MAX_SIZE);
+    char * tmp = src;
+    memcpy(static_cast<void*>(_data), tmp, MAX_SIZE);
+    memcpy(&type, tmp, sizeof(MessageType));
+    tmp += sizeof(MessageType);
+
+    memcpy(&size, tmp, sizeof(size_t));
+    tmp += sizeof(size_t);
+
+    char * name_c = new char[size];
+    memcpy(name_c, tmp, size);
+    name = std::string(name_c);
+
+    return 0;
+}
+
+
 // PositionMessage -------------------------------------------------------------
 
 PositionMessage::PositionMessage() : Message(POSITIONS), size(0) {

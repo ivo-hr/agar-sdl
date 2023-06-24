@@ -8,6 +8,7 @@
 enum MessageType
 {
     LOGIN = 0,
+    CONFIRM,
     LOGOUT,
     POSITIONS,
     SIZES,
@@ -43,7 +44,22 @@ public:
     void to_bin() override;
     int from_bin(char * src) override;
 
-    std::string name;
+    std::string nam;
+    size_t size;
+};
+
+class ConfirmMessage : public Message
+{
+public:
+    ConfirmMessage() {};
+    ConfirmMessage(int index) {};
+
+    virtual ~ConfirmMessage() {};
+
+    void to_bin() override;
+    int from_bin(char * src) override;
+
+    int index;
     size_t size;
 };
 
@@ -104,5 +120,20 @@ public:
     int from_bin(char * src) override;
 
     std::pair<float, float> input;
+    size_t size;
+};
+
+class LogoutMessage : public Message
+{
+public:
+    LogoutMessage() {};
+    LogoutMessage(int index) {};
+
+    virtual ~LogoutMessage() {};
+
+    void to_bin() override;
+    int from_bin(char * src) override;
+
+    int index;
     size_t size;
 };
