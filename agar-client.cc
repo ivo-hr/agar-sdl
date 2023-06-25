@@ -1,5 +1,4 @@
-
-#include "agar-client.h"
+ReceiveMessage#include "agar-client.h"
 
 
 
@@ -76,112 +75,176 @@ void FollowPlayer(float *cameraX, float *cameraY, float *scale)
         *scale = minScale;
 }
 
-
-//metodos de comunicacion con el servidor
-
-void sendClientMessageToServer(ClientMessage* clientMessage, int sock)
+pair<float, float> MovePlayer(int mouseX, int mouseY)
 {
-    printf("Sending client message to server\n");
-    // Creamos una instancia de SerializableClientMessage y lo llenamos con el mensaje del cliente
-    SerializableClientMessage* serializableClientMessage = new_SerializableClientMessage();
-    serializableClientMessage->message = *clientMessage;
-    printf("Client message created\n");
-    // Serializamos el mensaje del cliente
-    serializableClientMessage->base.to_bin((Serializable*)serializableClientMessage);
-    printf("Client message serialized\n");
-    // guardamos los datos del mensaje serializado
-    char* serializedClienttData = serializableClientMessage->base.data((Serializable*)serializableClientMessage);
-    int32_t serializedClientSize = serializableClientMessage->base.size((Serializable*)serializableClientMessage);
-    serializedClienttData = malloc(serializedClientSize);
-    printf("Client message data saved\n");
-    // Enviamos el mensaje serializado al servidor
-    send( sock, serializedClienttData, serializedClientSize, 0);
+    float dx = (float)mouseX - WINDOW_WIDTH / 2;
+    float dy = (float)mouseY - WINDOW_HEIGHT / 2;
+    float distance = sqrt(dx * dx + dy * dy);
 
-    // Liberamos la memoria del mensaje serializado
-    free_SerializableClientMessage(serializableClientMessage);
+    if (distance > 0)
+    {
+        myPlayer->x += dx * LAG_FACTOR;
+        myPlayer->y += dy * LAG_FACTOR;
+    }
 }
 
-ClientMessage* makeClientMessage(Player player)
+void initializePlayers()
+{
+    for (int i = 0; i < MAX_PLAYERS; i++)
+    {
+        players[i].alive = false;
+        players[i].x = 0
+        players[i].y = 0
+        players[i].radius = 0
+    }
+}
+
+void initializeFood()
+{
+    for (int i = 0; i < MAX_FOOD; i++)
+    {
+        food[i].alive = false;
+    }
+}
+//metodos de comunicacion con el servidor
+
+void makeClientMessage(MessageType type, Socket serverSocket)
 {
     printf("Creating client message\n");
 
-    // Allocate memory for the ClientMessage struct
-    ClientMessage* clientMessage = (ClientMessage*)malloc(sizeof(ClientMessage));
-    
-    // Check if memory allocation was successful
-    if (clientMessage == NULL) {
-        printf("Failed to allocate memory for ClientMessage\n");
-        return NULL;
-    }
+    switch (msg->type) {
+        case LOGIN: {
 
-    // Assign values to the members of the ClientMessage struct
-    clientMessage->player.x = player.x;
-    clientMessage->player.y = player.y;
-    clientMessage->player.radius = player.radius;
-    clientMessage->player.playerIndex = player.playerIndex;
-    clientMessage->timestamp = SDL_GetTicks();
+            LoginMessage inMsg("aggar_enyojer");
+            mySocket->send(inMsg, serverSocket);
+        }
+        break;
+
+        case INPUT: {
+            
+            InputMessage iMsg(mouseX,mouseY);
+            mySocket->send(iMsg, serverSocket);
+        }
+        break;
+
+        case LOGOUT: {
+            
+            LogoutMessage outMsg(MyPlayer);
+            mySocket->send(outMsg, serverSocket);
+        }
+        break;
+    
+    }
 
     printf("Client message created\n");
-
-    return clientMessage;
 }
 
-void ReceiveMessage(int socket)
+void ReceiveMessage(Socket* serverSocket)
 {
-   printf("Receiving message\n");
-
-    // Create a buffer to receive the serialized message
-    char buffer[sizeof(SerializableServerMessage)];
-
-    // Receive the serialized message
-    ssize_t bytesRead = recv(socket, buffer, sizeof(buffer), 0);
-    if (bytesRead == -1) {
-        perror("Error receiving message");
-        return;
+    Uint32 tick = SDL_GetTicks();
+    while(SDL_GetTicks() - tick <= 5){
+        Message* msg = new Message();
+        int ret = socket->recv(*msg, &serverSocket);
+        if(ret == -1) {
+            delete msg;
+            perror("Error receiving message");
+        }
+        else processServerMessage(msg);
     }
-
-    // Create a SerializableClientMessage object
-    SerializableServerMessage* deserializedServerData = new_SerializableServerMessage();
-
-    // Deserialize the received data
-    deserializedServerData->base.from_bin((Serializable*)deserializedServerData, buffer);
-
-    printf("Deserialized message\n");
-
-    // Apply the message
-    //si es un mensaje de confirm login;
-    //MyPlayer = playerNum index que envia el servidor
-    //si es un mensaje standard
-    processServerMessage(&deserializedServerData->message);
-    printf("Applied message\n");
-
-    // Free the dynamically allocated memory
-    free_SerializableServerMessage(deserializedServerData);
-
-    printf("Freed memory\n");
 }
 
-void processServerMessage(ServerMessage* message)
+void processServerMessage(Message* msg)
 {
-    printf("Processing server message\n");
-    for(int i = 0; i < MAX_PLAYERS; i++)
-    {
-        players[i].x = message->players[i].x;
-        players[i].y = message->players[i].y;
-        players[i].alive = message->players[i].alive;
-        players[i].radius = message->players[i].radius;
-        players[i].playerIndex = message->players[i].playerIndex;
+    switch (msg->type) {
+        case CONFIRM: {
+            ConfirmMessage cMsg;
+            cMsg.from_bin(msg.data());
+            if (cMsg.index != -1) {
+                MyPlayer = cMsg.index;
+                printf("Player index asignado: ");                
+            }
+            delete cMsg;
+        }
+        break;
+        case POSITIONS:{
+            PositionMessage pMsg;
+            pMsg.from_bin(msg.data());
+            if (pMsg.players.size() > 0) {
+                for(int i = 0; int < pMsg.size(); i++)
+                {
+                    players[i]->x = pMsg(i).first;
+                    players[i]->y = pMsg(i).second;
+                }
+                printf("Posiciones actualizadas: ");                
+            }
+            delete pMsg;
+        }
+        break;
+
+        case SIZES:{
+            SizeMessage sMsg;
+            sMsg.from_bin(msg.data());
+            if (sMsg.players.size() > 0) {
+                for(int i = 0; int < sMsg.size(); i++)
+                {
+                    players[]->size = sMsg(i);
+                }
+                printf("Tamaños actualizadas: ");                
+            }
+            else printf("Tamaños invalido: "); 
+            delete sMsg;
+        }
+        break;
+
+        case FOOD:
+            FoodMessage pMsg;
+            fMsg.from_bin(msg.data());
+            if (fMsg.players.size() > 0) {
+                for(int i = 0; int < fMsg.size(); i++)
+                {
+                    if(fMsg(i).first == -1 && fMsg(i).second == -1)
+                    {
+                        foods[i]->alive = false;
+                    }
+                    else{
+
+                        foods[i]->alive = true;
+                        foods[i]->x = fMsg(i).first;
+                        foods[i]->y = fMsg(i).second;
+                    }
+                }
+                printf("Posiciones actualizadas: ");                
+            }
+            delete fMsg;
+        break;
+        default:
+        break;
     }
+    delete msg
   
 }
 
 int main()
 {
+    // Pedir al usuario que ingrese la IP del cliente
+    char IP[16];
+    printf("Ingrese su propia ip: ");
+    fgets(IP, sizeof(IP), stdin);
+    IP[strcspn(IP, "\n")] = '\0';
+
+    // Crear un socket del cliente
+        mySocket = new socket(IP, "8080");
+
+    if (mySocket->bind() == -1) {
+        perror("Error al crear el socket del cliente");
+        re
+        turn 1;
+    }
     // Pedir al usuario que ingrese la IP del servidor
-    char serverIP[16];
+    char IP[16];
     printf("Ingrese la IP del servidor: ");
-    fgets(serverIP, sizeof(serverIP), stdin);
-    serverIP[strcspn(serverIP, "\n")] = '\0';
+    fgets(IP, sizeof(IP), stdin);
+    IP[strcspn(IP, "\n")] = '\0';
 
     // Pedir al usuario que ingrese el puerto del servidor
     int serverPort;
@@ -190,28 +253,14 @@ int main()
     getchar();  // Consumir el salto de línea después del número
 
     // Crear un socket para la conexión con el servidor
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        perror("Error al crear el socket");
-        return 1;
-    }
-    printf("Socket creado exitosamente\n");
-    // Configurar la dirección del servidor
-    struct sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(serverPort);
-    if (inet_pton(AF_INET, serverIP, &(serverAddr.sin_addr)) <= 0) {
-        perror("Error al configurar la dirección del servidor");
-        return 1;
-    }
-    printf("Dirección del servidor configurada exitosamente\n");
+    Socket* serverSocket = new socket(IP, serverPort);
 
-    // Conectar con el servidor
-    if (connect(sockfd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
-        perror("Error al conectar con el servidor");
+    if (serverSocket->bind() == -1) {
+        perror("Error al crear el socket del servidor");
         return 1;
     }
-    printf("Conexión con el servidor establecida exitosamente\n");
+    printf("Socket del servidor creado exitosamente\n");
+
 
 
     // Inicialización de SDL, TTF y variables
@@ -230,29 +279,17 @@ int main()
 
     bool running = true;
 
-    Player myPlayer;
-    myPlayer.alive = true;
-    myPlayer.radius = INI_RADIUS;
-    myPlayer.x = 0;
-    myPlayer.y = 0;
-    // se le manda se;al al servidor para que cree un personaje
-    myPlayer.playerIndex = 13;
-
-    ClientMessage *myClientMessage = makeClientMessage(myPlayer);
-
-    sendClientMessageToServer(myClientMessage, sockfd);
-    printf("Sent message to server\n");
-    // se le asigna el personaje creado
-    ReceiveMessage(sockfd);
-
-    myPlayer = initializePlayer();
 
     // inicializa la comida
-    Food food[MAX_FOOD];
-    initializeFood(food);
+    initializeFood();
+    initializePlayers();
+    //mandar login
+    
+    makeClientMessage(LOGIN, serverSocket);
+    printf("Sent login message to server\n");
 
-    // Insertar jugador
-    int myPlayerNum = insertPlayer(players, "Player1");
+    ReceiveMessage(serverSocket);
+    printf("recived confim message from server\n");
 
     // Generar alimentos
     generateFood(food, MAX_FOOD);
@@ -261,6 +298,7 @@ int main()
     {
         SDL_Event event;
 
+        
         // Movimiento del jugador
         while (SDL_PollEvent(&event))
         {
@@ -270,24 +308,14 @@ int main()
             }
             else if (event.type == SDL_MOUSEMOTION)
             {
-                MovePlayer(&myPlayer, event.motion.x, event.motion.y);
-                printf("x: %f, y: %f\n", myPlayer.x, myPlayer.y);
+                mouseX = event.motion.x;
+                mouseY = event.motion.y;
+                //printf("x: %f, y: %f\n", myPlayer.x, myPlayer.y);
             }
         }
-        
 
-        // Actualizar posición del jugador local en el servidor
-        ClientMessage *myClientMessage = makeClientMessage(myPlayer);
-
-        printf("Sending message to server, my playerindex is %d\n" , myPlayer.playerIndex);
-
-        sendClientMessageToServer(myClientMessage, sockfd);
-        //send(sockfd, &clientMessage, sizeof(clientMessage), 0);
-
-        // Actualizar el juego con los datos recibidos del servidor
-        ReceiveMessage(sockfd);
-
-
+        makeClientMessage(INPUT, serverSocket);
+        ReceiveMessage(serverSocket);
 
         // Dibujar el juego
         SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
@@ -302,9 +330,6 @@ int main()
 
         // Dibujar alimentos
         drawFood(renderer, food, cameraX, cameraY, scale);
-
-        // Dibujar ranking
-        Ranking(renderer, players, MAX_PLAYERS, font);
 
         SDL_RenderPresent(renderer);
 

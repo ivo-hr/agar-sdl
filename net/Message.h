@@ -24,6 +24,7 @@ public:
     size_t MSG_SIZE = sizeof(size_t);
 
     Message(MessageType t);
+    Message();
     Message(const Message &m);
     virtual ~Message() {};
 
@@ -135,5 +136,5 @@ public:
     int from_bin(char * src) override;
 
     int index;
-    size_t size;
+    size_t size;inMsg
 };
