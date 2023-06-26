@@ -6,6 +6,8 @@
 
 
 // Message --------------------------------------------------------------------
+Message::Message() {}
+
 Message::Message(MessageType t) : type(t) {
     _data = nullptr;
 }
@@ -115,8 +117,8 @@ LogoutMessage::LogoutMessage() : Message(LOGOUT), size(0) {
     MSG_SIZE = sizeof(size_t);
 }
 
-LogoutMessage::LogoutMessage(std::string nam) : Message(LOGOUT), name(nam), size(strlen(name.c_str())) {
-    MSG_SIZE = strlen(name.c_str()) + sizeof(size_t);
+LogoutMessage::LogoutMessage(int ind) : Message(LOGOUT), index(ind), size(0) {
+    MSG_SIZE = sizeof(size_t) + sizeof(int);
 }
 
 void LogoutMessage::to_bin(){
@@ -130,8 +132,7 @@ void LogoutMessage::to_bin(){
     memcpy(tmp, &size, sizeof(size_t));
     tmp += sizeof(size_t);
 
-    const char * name_c = name.c_str();
-    memcpy(tmp, name_c, size);
+    memcpy(tmp, &index, sizeof(int));
 }
 
 int LogoutMessage::from_bin(char * src){
@@ -144,13 +145,10 @@ int LogoutMessage::from_bin(char * src){
     memcpy(&size, tmp, sizeof(size_t));
     tmp += sizeof(size_t);
 
-    char * name_c = new char[size];
-    memcpy(name_c, tmp, size);
-    name = std::string(name_c);
+    memcpy(&index, tmp, sizeof(int));
 
     return 0;
 }
-
 
 // PositionMessage -------------------------------------------------------------
 
@@ -212,7 +210,7 @@ SizeMessage::SizeMessage() : Message(SIZES), size(0) {
 
 SizeMessage::SizeMessage(std::vector<int> pSize) : Message(SIZES), size(pSize.size()) {
     MSG_SIZE = sizeof(size_t) + sizeof(float) * size;
-    size_ = pSize;
+    sizes = pSize;
 }
 
 void SizeMessage::to_bin(){
@@ -226,7 +224,7 @@ void SizeMessage::to_bin(){
     memcpy(tmp, &size, sizeof(size_t));
     tmp += sizeof(size_t);
 
-    for (auto &s : size_) {
+    for (auto &s : sizes) {
         memcpy(tmp, &s, sizeof(float));
         tmp += sizeof(float);
     }
@@ -247,7 +245,7 @@ int SizeMessage::from_bin(char * src){
         float s;
         memcpy(&s, tmp, sizeof(float));
         tmp += sizeof(float);
-        size_.push_back(s);
+        sizes.push_back(s);
     }
 
     return 0;
@@ -311,7 +309,7 @@ InputMessage::InputMessage() : Message(INPUT), size(0) {
     MSG_SIZE = sizeof(size_t);
 }
 
-InputMessage::InputMessage(std::pair<float, float> pInput) : Message(INPUT), size(pInput.size()) {
+InputMessage::InputMessage(std::pair<float, float> pInput) : Message(INPUT), size(sizeof(pInput)) {
     MSG_SIZE = sizeof(size_t) + sizeof(float) * 2 * size;
     input = pInput;
 }

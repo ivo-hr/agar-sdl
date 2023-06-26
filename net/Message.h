@@ -1,5 +1,6 @@
 #include <vector>
 #include <memory>
+#include <cstring>
 
 #include "Serializable.h"
 #include "Socket.h"
@@ -37,23 +38,23 @@ public:
 class LoginMessage : public Message
 {
 public:
-    LoginMessage() {};
-    LoginMessage(std::string nam) {};
+    LoginMessage();
+    LoginMessage(std::string name);
 
     virtual ~LoginMessage() {};
 
     void to_bin() override;
     int from_bin(char * src) override;
 
-    std::string nam;
+    std::string name;
     size_t size;
 };
 
 class ConfirmMessage : public Message
 {
 public:
-    ConfirmMessage() {};
-    ConfirmMessage(int index) {};
+    ConfirmMessage();
+    ConfirmMessage(int index);
 
     virtual ~ConfirmMessage() {};
 
@@ -67,7 +68,7 @@ public:
 class PositionMessage : public Message
 {
 public:
-    PositionMessage() {};
+    PositionMessage();
     PositionMessage(std::vector<std::pair<float, float>> pPos);
 
     virtual ~PositionMessage() {};
@@ -75,14 +76,14 @@ public:
     void to_bin() override;
     int from_bin(char * src) override;
 
-    std::vector<std::pair<float, float>> players;
+    std::vector<std::pair<float, float>> pos;
     size_t size;
 };
 
 class SizeMessage : public Message
 {
 public:
-    SizeMessage() {};
+    SizeMessage();
     SizeMessage(std::vector<int> pSize);
 
     virtual ~SizeMessage() {};
@@ -97,7 +98,7 @@ public:
 class FoodMessage : public Message
 {
 public:
-    FoodMessage() {};
+    FoodMessage();
     FoodMessage(std::vector<std::pair<float, float>> pFood);
 
     virtual ~FoodMessage() {};
@@ -112,7 +113,7 @@ public:
 class InputMessage : public Message
 {
 public:
-    InputMessage() {};
+    InputMessage();
     InputMessage(std::pair<float, float> pInput);
 
     virtual ~InputMessage() {};
@@ -127,8 +128,8 @@ public:
 class LogoutMessage : public Message
 {
 public:
-    LogoutMessage() {};
-    LogoutMessage(int index) {};
+    LogoutMessage();
+    LogoutMessage(int index);
 
     virtual ~LogoutMessage() {};
 
@@ -136,5 +137,5 @@ public:
     int from_bin(char * src) override;
 
     int index;
-    size_t size;inMsg
+    size_t size;
 };

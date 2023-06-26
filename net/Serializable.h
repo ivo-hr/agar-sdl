@@ -32,7 +32,7 @@ public:
     // Rebuid the class from a binary representation. Will return -1 if it fails
     virtual int from_bin(char * data) = 0;
 
-+
+
     // Return a pointer to the internal buffer with the serialized object.
     // Must be previously initialized with the to_bin() method.
     char * data() const

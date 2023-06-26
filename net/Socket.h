@@ -56,6 +56,10 @@ public:
         return recv(obj, (&s));
     }
 
+    int getDescriptor()
+    {
+        return sd;
+    }
     
     // Send a message (obj) to the given host (sock). Returns 0 if successfull or -1
     // if there was an error.

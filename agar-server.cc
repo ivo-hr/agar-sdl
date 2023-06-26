@@ -25,15 +25,13 @@ void handleCollisions() {
     }
 }
 
-int reSpawnPlayer(int playerNum)
+void reSpawnPlayer(int playerNum)
 {
 
     players[playerNum].x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
     players[playerNum].y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
     players[playerNum].radius = INI_RADIUS;
     players[playerNum].alive = true;
-
-    return i;
 }
 
 void MovePlayer(int playerNum, int mouseX, int mouseY)
@@ -44,24 +42,21 @@ void MovePlayer(int playerNum, int mouseX, int mouseY)
 
     if (distance > 0)
     {
-        players[playerNum]->x += dx * LAG_FACTOR;
-        players[playerNum]->y += dy * LAG_FACTOR;
+        players[playerNum].x += dx * LAG_FACTOR;
+        players[playerNum].y += dy * LAG_FACTOR;
     }
 }
 
-int insertPlayer(int playerNum)
+void initializePlayers()
 {
-    if (players[playerNum].alive)
+    printf("jugadores inicializados: ");
+    for (int i = 0; i < MAX_PLAYERS; i++)
     {
-        printf("Error: Trying to create character on an already existing one %d\n" , clientSocket);
-        return -1;
+        players[i].alive = false;
+        players[i].x = 0;
+        players[i].y = 0;
+        players[i].radius = 0;
     }
-    players[playerNum].x = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
-    players[playerNum].y = (rand() % (WORLD_SIZE - (-WORLD_SIZE) + 1)) + (-WORLD_SIZE);
-    players[playerNum].radius = INI_RADIUS;
-    players[playerNum].playerIndex = playerNum;
-    players[playerNum].alive = true;
-    return playerNum;
 }
 
 void removePlayer(int playerNum)
@@ -71,226 +66,32 @@ void removePlayer(int playerNum)
     players[playerNum].radius = 0.0;
     players[playerNum].alive = false;
     players[playerNum].playerIndex = false;
-    players[playerNum].playerIndex = -2;
-    lastClientTicks[playerNum] = 0; 
-}
-
-//server/client
-
-void handleClient(int clientSocket, Player* players) {
-    SerializableClientMessage* clientMessage = new_SerializableClientMessage();
-    long long currentTimestamp = getCurrentTimestamp();
-
-
-    while (1) {
-        checkTimeout(players, int messagetype);
-
-        //int playernum = playerSocket;
-        //si el mensaje es login, se crea un nuevo jugador.
-            //insertPlayer(playerNum);  
-
-        //si el mensaje es logout se destruye el jugador y se corta la conexion
-            //removePlayer(playerNum);
-
-        //si el mensaje es input, actualiza la posicion del jugador
-            //MovePlayer(playerNum, mouseX, mouseY);
-
-
-        int32_t dataSize;
-        if (recv(clientSocket, &dataSize, sizeof(int32_t), 0) < 0){
-            printf("Error: Failed to receive data size from socket %d\n" , clientSocket);
-            perror("recv");
-            break;
-        }
-        char* data = (char*)malloc(dataSize);
-        if (recv(clientSocket, data, dataSize, 0) < 0){
-            printf("Error: Failed to receive data from socket %d\n" , clientSocket);
-            perror("recv");
-            break;
-        }
-
-        if (clientMessage->base.from_bin((Serializable*)clientMessage, data) == -1) {
-            printf("Error: Failed to deserialize client message\n");
-            break;
-        }
-
-        int playerIndex = clientMessage->message.playerIndex;
-        printf("Received message from client %s with index %d\n", clientMessage->message.username, playerIndex);
-
-        handleCollisions(players);
-
-        ServerMessage serverMessage;
-        serverMessage.messageId = 1;
-        memcpy(serverMessage.players, players, sizeof(Player) * MAX_PLAYERS);
-
-        SerializableServerMessage* serializableServerMessage = new_SerializableServerMessage();
-        serializableServerMessage->message = serverMessage;
-        serializableServerMessage->base.to_bin((Serializable*)serializableServerMessage);
-
-        int32_t serverDataSize = serializableServerMessage->base._size;
-
-        if (send(clientSocket, &serverDataSize, sizeof(int32_t), 0) <= 0)
-            break;
-        if (send(clientSocket, serializableServerMessage->base._data, serverDataSize, 0) <= 0)
-            break;
-
-        free(serializableServerMessage->base._data);
-        free(serializableServerMessage);
-        free(data);
-
- 
-
-        if (lastClientTicks[playerIndex] < 0){
-            free_SerializableClientMessage(clientMessage);
-            //close(clientSocket);
-            exit(0);
-        }
-    }
-
-    free_SerializableClientMessage(clientMessage);
-    close(clientSocket);
-}
-
-// int createServerSocket(int port) {
-//     int serverSocket;
-//     struct sockaddr_in serverAddress;
-//     printf("Starting server on port %d\n", port);
-//     // Create server socket
-//     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-//     if (serverSocket == -1) {
-//         perror("Error: Failed to create server socket\n");
-//         exit(1);
-//     }
-//     // Set server address configuration
-//     serverAddress.sin_family = AF_INET;
-//     serverAddress.sin_addr.s_addr = INADDR_ANY;
-//     serverAddress.sin_port = htons(port);
-//     // Bind the server socket to the specified IP address and port
-//     if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-//         perror("Error: Failed to bind server socket\n");
-//         exit(1);
-//     }
-//     // Listen for client connections
-//     if (listen(serverSocket, MAX_CLIENTS) < 0) {
-//         perror("Error: Failed to listen for client connections\n");
-//         exit(1);
-//     }
-//     printf("Server started successfully!\n");  
-//     return serverSocket;
-// }
-// int acceptClientConnection(int serverSocket) {
-//     struct sockaddr_in clientAddress;
-//     int clientSocket;
-//     int clientAddressSize = sizeof(clientAddress);
-//     // Accept client connection
-//     clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddress, (socklen_t*)&clientAddressSize);
-//     if (clientSocket < 0) {
-//         perror("Error: Failed to accept client connection\n");
-//         exit(1);
-//     }
-//     return clientSocket;
-// }
-
-//recibe el mensaje del jugador
-void handleClientRequests(int maxClients) {
-
-
-//     Player players[MAX_PLAYERS];
-//     for (int i = 0; i < MAX_PLAYERS; i++) {
-//         strcpy(players[i].username, "");
-//         players[i].x = 0.0;
-//         players[i].y = 0.0;
-//         players[i].radius = 0.0;
-//         players[i].alive = false;
-//         lastClientTicks[i] = 0;
-//     }
-//    while (1) {
-//         // Accept client connection
-//         int clientSocket = acceptClientConnection(serverSocket);
-//         if (numConnectedPlayers >= MAX_PLAYERS) {
-//             // Reject the connection if the maximum number of players is reached
-//             printf("Max player limit reached. Rejecting new connection.\n");
-//             close(clientSocket);
-//             continue;
-//         }
-//         // Add client socket to the list
-//         for (int i = 0; i < maxClients; i++) {
-//             if (clientSockets[i] == 0) {
-//                 clientSockets[i] = clientSocket;
-//                 break;
-//             }
-//         }
-//         // Create a new process to handle the client
-//         int pid = fork();
-//         //Send the player index to the client      
-//         if (pid < 0) {
-//             perror("Error: Failed to create child process\n");
-//             exit(1);
-//         } else if (pid == 0) {
-//             // Child process handles the client
-//             handleClient(clientSocket, players);
-//             break;
-//         }
-//         numConnectedPlayers++; // Increment the number of connected players
-//}
-}
-
-long long getCurrentTimestamp() {
-    time_t currentTime = time(NULL);
-    return (long long)currentTime * 1000;
-}
-
-// void releaseSocket(int clientSocket, int* clientSockets, int maxClients) {
-//     Close the client socket
-//     close(clientSocket);
-//     Remove the client socket from the array
-//     for (int i = 0; i < maxClients; i++) {
-//         if (clientSockets[i] == clientSocket) {
-//             clientSockets[i] = 0;
-//             break;
-//         }
-//     }
-// }
-
-void checkTimeout(Player* players) {
-    long long currentTimestamp = getCurrentTimestamp();
-
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-        if (players[i].alive && currentTimestamp - lastClientTicks[i] > MAX_TIMEOUT) {
-            // Player has timed out, handle the disconnection
-            printf("Player with index %d has timed out. Disconnecting...\n", i);
-            
-            releaseSocket(clientSockets[i], clientSockets, MAX_CLIENTS);
-            resetPlayerInfo(i, players);
-
-            numConnectedPlayers--;
-
-            lastClientTicks[i] = -1;
-        }
-    }
+    players[playerNum].playerIndex = -1;
 }
 
 //food
 
-bool CollisionFood(Food food[], Player myPlayer)
+void CollisionFood()
 {
     for (int i = 0; i < MAX_FOOD; i++)
     {
-        if (food[i].alive)
+        if (foods[i].alive)
         {
-            float dx = food[i].x - myPlayer.x;
-            float dy = food[i].y - myPlayer.y;
-            float distance = sqrt(dx * dx + dy * dy);
-
-            if (distance < (myPlayer.radius) + FOOD_RADIUS)
+            for(int j = 0; j < MAX_PLAYERS; j++)
             {
-                food[i].alive = false;
-                return true;
+                float dx = foods[i].x - players[j].x;
+                float dy = foods[i].y - players[j].y;
+                float distance = sqrt(dx * dx + dy * dy);
+
+                if (distance < (players[j].radius) + FOOD_RADIUS)
+                {
+                    foods[i].alive = false;
+                    players[j].radius +=5;
+                }
             }
         }
     }
 
-    return false;
 }
 
 void insertFood(Food food[], int x, int y)
@@ -314,11 +115,12 @@ void generateFood(Food food[], int numFood)
     }
 }
 
-void initializeFood(Food food[])
+void initializeFood()
 {
+    printf("comida inicializada: ");
     for (int i = 0; i < MAX_FOOD; i++)
     {
-        food[i].alive = false;
+        foods[i].alive = false;
     }
 }
 
@@ -327,32 +129,139 @@ void removeFood(Food food[], int index)
     food[index].alive = false;
 }
 
+//server/client
+
+void do_messages()
+{
+    while (true)
+    {
+
+        Message em;
+
+        Socket *client;
+
+        mySocket->recv(em, &client);
+
+        if(em.type == LOGIN)
+        {
+            std::unique_ptr<Socket> client_ptr(client);
+
+            clients.push_back(std::move(client_ptr));
+            //guardar la pos de clients usando numConnectedPlayers
+            numConnectedPlayers++;
+        }
+        else if(em.type == LOGOUT)
+        {
+
+            auto it = clients.begin();
+
+            while (it != clients.end())
+            {
+                if (*it->get() == *client)
+                {
+                    numConnectedPlayers--;
+                    clients.erase(it);
+                }
+
+                ++it;
+            }
+
+        }
+        else if(em.type == INPUT)
+        {
+
+            /*aun no se ja hecho el input, hay qie hacerlo*/
+
+            //hacer el input
+            auto it = clients.begin();
+
+            InputMessage iMsg;
+            iMsg.from_bin(em.data());
+
+            while (it != clients.end())
+            {
+                if (*it->get() == *client)
+                {
+
+                    int position = std::distance(clients.begin(), it);
+
+                    MovePlayer(position, iMsg.input.first, iMsg.input.second);
+           
+                    //players
+                    std::vector<std::pair<float, float>> playerPos;
+                    for(int i = 0; i < MAX_PLAYERS; i++)
+                    {
+                        std::pair<float, float> pos{players[i].x, players[i].y};
+                        playerPos.push_back(pos);
+                    }
+                    PositionMessage pMsg(playerPos);
+                    mySocket->send(pMsg, *(*it));
+                    //sizes
+                    std::vector<int> playerSize;
+                    for(int i = 0; i < MAX_PLAYERS; i++)
+                    {
+                        int size = players[i].radius;
+                        playerSize.push_back(size);
+                    }
+                    SizeMessage sMsg(playerSize);
+                    mySocket->send(sMsg, *(*it));
+                    //food
+                    std::vector<std::pair<float, float>> foodPos;
+                    for(int i = 0; i < MAX_FOOD; i++)
+                    {
+                        std::pair<float, float> pos{foods[i].x, foods[i].y};
+                        if(!foods[i].alive)
+                            foodPos.push_back(std::make_pair(-1, -1));
+                        else foodPos.push_back(pos);
+                    }
+                    PositionMessage fMsg(foodPos);
+                    mySocket->send(fMsg, *(*it));
+
+                    //socket.send(em, *(*it));
+                }
+                ++it;
+            }
+
+        }
+       
+
+        handleCollisions();
+        CollisionFood();
+    }
+}
+
 int main() {
-    int port;
+
+    char port[16];
     printf("Welcome to the AGAR.SDL server!\n\n To play this game truly online, you will need to port forward. If you don't, you will be restricted to your network. \n Info about how you can port forward your router can be found here: https://portforward.com/how-to-port-forward/\n\n");
     sleep(2);
     printf("Enter the port number: ");
-    scanf("%d", &port);
+    fgets(port, sizeof(port), stdin);
 
-    bool foundPort = false;
-    while (!foundPort) {
-        if (port <= 0 || port > 65535) {
-            printf("\n\nInvalid port number! The port number must be between 1 and 65535.\n");
-            sleep(1);
-            printf("Enter the port number: ");
-            scanf("%d", &port);
-        } else {
-            foundPort = true;
-        }
+    char IP[16];
+    printf("Ingrese la ip del servidor: ");
+    fgets(IP, sizeof(IP), stdin);
+    IP[strcspn(IP, "\n")] = '\0';
+
+    port[strcspn(port, "\n")] = '\0';
+    IP[strcspn(IP, "\n")] = '\0';
+
+    printf("ip coppied succesfull\n");
+    Socket* serverSocket = new Socket(IP, port);
+    if (serverSocket->bind() == -1) {
+        perror("Error al crear el socket del servidor");
+        return 1;
     }
+    mySocket = serverSocket;
+    printf("Socket del servidor creado exitosamente\n");
 
-    int serverSocket = createServerSocket(port);
+    initializeFood();
+    initializePlayers();
+    do_messages();
 
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        clientSockets[i] = 0;
-    }
+    printf("servidor cerrado: ");
 
-    handleClientRequests(serverSocket, clientSockets, MAX_CLIENTS);
-    close(serverSocket);
     return 0;
 }
+
+//do_message

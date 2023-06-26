@@ -1,4 +1,5 @@
-ReceiveMessage#include "agar-client.h"
+
+#include "agar-client.h"
 
 
 
@@ -14,7 +15,7 @@ void DrawCircle(SDL_Renderer *renderer, int centerX, int centerY, int radius, Ui
     }
 }
 
-void DrawPlayer(SDL_Renderer *renderer, int cameraX, int cameraY, float scale, TTF_Font *font)
+void DrawPlayer(SDL_Renderer *renderer, int myPlayer, int cameraX, int cameraY, float scale, TTF_Font *font)
 {
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
@@ -27,7 +28,7 @@ void DrawPlayer(SDL_Renderer *renderer, int cameraX, int cameraY, float scale, T
             Uint8 red, green, blue;
 
             // Color based on player number
-            if (i == MyPlayer)
+            if (i == myPlayer)
             {
                 red = 0;
                 green = 255;
@@ -47,14 +48,14 @@ void DrawPlayer(SDL_Renderer *renderer, int cameraX, int cameraY, float scale, T
     }
 }
 
-void drawFood(SDL_Renderer *renderer, Food food[], int cameraX, int cameraY, float scale)
+void drawFood(SDL_Renderer *renderer, int cameraX, int cameraY, float scale)
 {
     for (int i = 0; i < MAX_FOOD; i++)
     {
-        if (food[i].alive)
+        if (foods[i].alive)
         {
-            int x = (food[i].x - cameraX) * scale + WINDOW_WIDTH / 2;
-            int y = (food[i].y - cameraY) * scale + WINDOW_HEIGHT / 2;
+            int x = (foods[i].x - cameraX) * scale + WINDOW_WIDTH / 2;
+            int y = (foods[i].y - cameraY) * scale + WINDOW_HEIGHT / 2;
             int radius = FOOD_RADIUS * scale;
 
             // Draw food circle
@@ -63,29 +64,16 @@ void drawFood(SDL_Renderer *renderer, Food food[], int cameraX, int cameraY, flo
     }
 }
 
-void FollowPlayer(float *cameraX, float *cameraY, float *scale)
+void FollowPlayer(int myPlayer, float *cameraX, float *cameraY, float *scale)
 {
-    *cameraX = players[MyPlayer].x - WINDOW_WIDTH / (2 * *scale);
-    *cameraY = players[MyPlayer].y - WINDOW_HEIGHT / (2 * *scale);
+    *cameraX = players[myPlayer].x - WINDOW_WIDTH / (2 * *scale);
+    *cameraY = players[myPlayer].y - WINDOW_HEIGHT / (2 * *scale);
 
-    float playerSize = INI_RADIUS * *scale;
+    float playerSize = 20 * *scale;
     float minScale = WINDOW_WIDTH / (playerSize * 4);
 
     if (*scale < minScale)
         *scale = minScale;
-}
-
-pair<float, float> MovePlayer(int mouseX, int mouseY)
-{
-    float dx = (float)mouseX - WINDOW_WIDTH / 2;
-    float dy = (float)mouseY - WINDOW_HEIGHT / 2;
-    float distance = sqrt(dx * dx + dy * dy);
-
-    if (distance > 0)
-    {
-        myPlayer->x += dx * LAG_FACTOR;
-        myPlayer->y += dy * LAG_FACTOR;
-    }
 }
 
 void initializePlayers()
@@ -93,9 +81,9 @@ void initializePlayers()
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
         players[i].alive = false;
-        players[i].x = 0
-        players[i].y = 0
-        players[i].radius = 0
+        players[i].x = 0;
+        players[i].y = 0;
+        players[i].radius = 0;
     }
 }
 
@@ -103,7 +91,7 @@ void initializeFood()
 {
     for (int i = 0; i < MAX_FOOD; i++)
     {
-        food[i].alive = false;
+        foods[i].alive = false;
     }
 }
 //metodos de comunicacion con el servidor
@@ -112,7 +100,7 @@ void makeClientMessage(MessageType type, Socket serverSocket)
 {
     printf("Creating client message\n");
 
-    switch (msg->type) {
+    switch (type) {
         case LOGIN: {
 
             LoginMessage inMsg("aggar_enyojer");
@@ -122,14 +110,14 @@ void makeClientMessage(MessageType type, Socket serverSocket)
 
         case INPUT: {
             
-            InputMessage iMsg(mouseX,mouseY);
+            InputMessage iMsg(std::make_pair(mouseX,mouseY));
             mySocket->send(iMsg, serverSocket);
         }
         break;
 
         case LOGOUT: {
             
-            LogoutMessage outMsg(MyPlayer);
+            LogoutMessage outMsg(myPlayer);
             mySocket->send(outMsg, serverSocket);
         }
         break;
@@ -144,7 +132,7 @@ void ReceiveMessage(Socket* serverSocket)
     Uint32 tick = SDL_GetTicks();
     while(SDL_GetTicks() - tick <= 5){
         Message* msg = new Message();
-        int ret = socket->recv(*msg, &serverSocket);
+        int ret = mySocket->recv(*msg, &serverSocket);
         if(ret == -1) {
             delete msg;
             perror("Error receiving message");
@@ -158,103 +146,105 @@ void processServerMessage(Message* msg)
     switch (msg->type) {
         case CONFIRM: {
             ConfirmMessage cMsg;
-            cMsg.from_bin(msg.data());
+            cMsg.from_bin(msg->data());
             if (cMsg.index != -1) {
-                MyPlayer = cMsg.index;
+                myPlayer = cMsg.index;
                 printf("Player index asignado: ");                
             }
-            delete cMsg;
         }
         break;
         case POSITIONS:{
             PositionMessage pMsg;
-            pMsg.from_bin(msg.data());
-            if (pMsg.players.size() > 0) {
-                for(int i = 0; int < pMsg.size(); i++)
+            pMsg.from_bin(msg->data());
+            if (strlen(pMsg.data())> 0) {
+                for(int i = 0; i < pMsg.pos.size(); i++)
                 {
-                    players[i]->x = pMsg(i).first;
-                    players[i]->y = pMsg(i).second;
+                    players[i].x = pMsg.pos[i].first;
+                    players[i].y = pMsg.pos[i].second;
                 }
                 printf("Posiciones actualizadas: ");                
             }
-            delete pMsg;
         }
         break;
 
         case SIZES:{
             SizeMessage sMsg;
-            sMsg.from_bin(msg.data());
-            if (sMsg.players.size() > 0) {
-                for(int i = 0; int < sMsg.size(); i++)
+            sMsg.from_bin(msg->data());
+            if (strlen(sMsg.data()) > 0) {
+                for(int i = 0; i < strlen(sMsg.data()); i++)
                 {
-                    players[]->size = sMsg(i);
+                    players[i].radius = sMsg.sizes[i];
                 }
                 printf("Tamaños actualizadas: ");                
             }
             else printf("Tamaños invalido: "); 
-            delete sMsg;
         }
         break;
 
         case FOOD:
-            FoodMessage pMsg;
-            fMsg.from_bin(msg.data());
-            if (fMsg.players.size() > 0) {
-                for(int i = 0; int < fMsg.size(); i++)
+            FoodMessage fMsg;
+            fMsg.from_bin(msg->data());
+            if (strlen(fMsg.data()) > 0) {
+                for(int i = 0; i < strlen(fMsg.data()); i++)
                 {
-                    if(fMsg(i).first == -1 && fMsg(i).second == -1)
+                    if(fMsg.food[i].first == -1 && fMsg.food[i].second == -1)
                     {
-                        foods[i]->alive = false;
+                        foods[i].alive = false;
                     }
                     else{
 
-                        foods[i]->alive = true;
-                        foods[i]->x = fMsg(i).first;
-                        foods[i]->y = fMsg(i).second;
+                        foods[i].alive = true;
+                        foods[i].x = fMsg.food[i].first;
+                        foods[i].y = fMsg.food[i].second;
                     }
                 }
                 printf("Posiciones actualizadas: ");                
             }
-            delete fMsg;
-        break;
-        default:
         break;
     }
-    delete msg
+    delete msg;
   
 }
 
 int main()
 {
     // Pedir al usuario que ingrese la IP del cliente
-    char IP[16];
+    char myIP[16];
     printf("Ingrese su propia ip: ");
-    fgets(IP, sizeof(IP), stdin);
-    IP[strcspn(IP, "\n")] = '\0';
+    fgets(myIP, sizeof(myIP), stdin);
+    myIP[strcspn(myIP, "\n")] = '\0';
+
+    printf("print de la ip del cliente: %s\n", myIP);
 
     // Crear un socket del cliente
-        mySocket = new socket(IP, "8080");
-
+    mySocket = new Socket(myIP, "1111");
+    int reuse = 1;
+    setsockopt(mySocket->getDescriptor(), SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
     if (mySocket->bind() == -1) {
         perror("Error al crear el socket del cliente");
-        re
-        turn 1;
+        return 1;
     }
     // Pedir al usuario que ingrese la IP del servidor
-    char IP[16];
+    char servIP[16];
     printf("Ingrese la IP del servidor: ");
-    fgets(IP, sizeof(IP), stdin);
-    IP[strcspn(IP, "\n")] = '\0';
+    fgets(servIP, sizeof(servIP), stdin);
+    servIP[strcspn(servIP, "\n")] = '\0';
 
     // Pedir al usuario que ingrese el puerto del servidor
-    int serverPort;
+    char serverPort[16];
     printf("Ingrese el puerto del servidor: ");
-    scanf("%d", &serverPort);
-    getchar();  // Consumir el salto de línea después del número
+    fgets(serverPort, sizeof(serverPort), stdin);
+    serverPort[strcspn(serverPort, "\n")] = '\0';
+    //getchar();  // Consumir el salto de línea después del número
+
+
+    printf("print de la ip del servidor: '%s'\n", servIP);
+    printf("print del puerto del servidor: '%s'\n", serverPort);
 
     // Crear un socket para la conexión con el servidor
-    Socket* serverSocket = new socket(IP, serverPort);
-
+    Socket* serverSocket = new Socket(servIP, serverPort);
+    reuse = 1;
+    setsockopt(serverSocket->getDescriptor(), SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
     if (serverSocket->bind() == -1) {
         perror("Error al crear el socket del servidor");
         return 1;
@@ -285,14 +275,11 @@ int main()
     initializePlayers();
     //mandar login
     
-    makeClientMessage(LOGIN, serverSocket);
+    makeClientMessage(LOGIN, *serverSocket);
     printf("Sent login message to server\n");
 
     ReceiveMessage(serverSocket);
     printf("recived confim message from server\n");
-
-    // Generar alimentos
-    generateFood(food, MAX_FOOD);
 
     while (running)
     {
@@ -314,7 +301,7 @@ int main()
             }
         }
 
-        makeClientMessage(INPUT, serverSocket);
+        makeClientMessage(INPUT, *serverSocket);
         ReceiveMessage(serverSocket);
 
         // Dibujar el juego
@@ -326,10 +313,10 @@ int main()
         FollowPlayer(myPlayer, &cameraX, &cameraY, &scale);
 
         // Dibujar jugadores
-        DrawPlayer(renderer, players, myPlayerNum, cameraX, cameraY, scale, font);
+        DrawPlayer(renderer, myPlayer, cameraX, cameraY, scale, font);
 
         // Dibujar alimentos
-        drawFood(renderer, food, cameraX, cameraY, scale);
+        drawFood(renderer, cameraX, cameraY, scale);
 
         SDL_RenderPresent(renderer);
 
